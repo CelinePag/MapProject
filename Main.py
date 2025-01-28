@@ -50,7 +50,7 @@ if __name__ == "__main__":
     
     
     # ----------- Html map
-    # mp.get_map(dfmax, Cli.nom)
+    mp.get_map(dfmax, Cli.nom)
     
     # ----------- various graphs
     # gr.get_best_5K(dfmax, 5000, list_type=['Run'])
@@ -62,5 +62,5 @@ if __name__ == "__main__":
     # gr.distance_week(dfmax.loc[dfmax['type'] == 'Run'], ["Ride, Run"])
     # gr.graph_weekday(dfmax, ["Run", "TrailRun"], ['distance_km', "average_pace", 'total_elevation_gain'])
     # gr.graph_many(dfmax, ["Run", "TrailRun"], ['type','moving_time_hr','distance_km','total_elevation_gain','average_speed'])
-    gr.stream_xy(dfmax, "distance_y", "heartrate")
+    # gr.stream_xy(dfmax, "distance_y", "heartrate")
     

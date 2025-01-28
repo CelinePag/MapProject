@@ -16,21 +16,23 @@ PATH_CSV = r"Data"
 
 class ClientStrava:
     def __init__(self, name): #id_athlete, id_secret, name_file):
-        print(f"{PATH_TOKEN}\{name}.json")
         with open(f"{PATH_TOKEN}\{name}.json") as json_file:
             user_data = json.load(json_file)
         self.id_athlete = user_data["id"]
         self.id_secret = user_data["secret_key"]
-        self.name_file = f"{PATH_TOKEN}\{user_data['token']}"
+        self.name_file = f"{user_data['tokenFile']}"
         self.nom = user_data["name"]
-        if self.name_file == None:
-            self.create_client(self.name_file)
+        if self.name_file in [None, 0, "0"]:
+            self.create_client(name)
+            user_data['tokenFile'] = f"strava_tokens_{name}.json"
+            with open(f"{PATH_TOKEN}\{name}.json", "w") as outfile:
+                 json.dump(user_data, outfile)
+        self.name_file = f"{PATH_TOKEN}\{user_data['tokenFile']}"
         self.init_client()
 
     
-    def create_client(self):
-        cliend_id = 123240
-        print(f"http://www.strava.com/oauth/authorize?client_id={cliend_id}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read")
+    def create_client(self, name):
+        print(f"http://www.strava.com/oauth/authorize?client_id={self.id_athlete}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=activity:read_all,profile:read_all")
         code = input("code:")
         response = requests.post(
                         url = 'https://www.strava.com/oauth/token',
@@ -42,14 +44,13 @@ class ClientStrava:
                                 })
         #Save json response as a variable
         strava_tokens = response.json()# Save tokens to file
-        with open(self.name_file, 'w') as outfile:
+        with open(f"{PATH_TOKEN}\strava_tokens_{name}.json", 'w') as outfile:
             json.dump(strava_tokens, outfile)
 
     def init_client(self):
         with open(self.name_file) as json_file:
             strava_tokens = json.load(json_file)
             ## If access_token has expired then use the refresh_token to get the new access_token
-        print(strava_tokens)
         if strava_tokens['expires_at'] < time.time():
             #Make Strava auth API call with current refresh token
             response = requests.post(

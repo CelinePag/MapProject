@@ -90,9 +90,9 @@ def get_map(dfmax, name):
                                    height=(height*resolution)+20)
 
             popup = folium.Popup(iframe, max_width=2650)
-            icon = folium.Icon(color=st.color_activities[row['type']], icon='info-sign')
+            icon = folium.Icon(color='black',icon_color=st.color_activities[row['type']], icon='info-sign')
             marker = folium.Marker(location=halfway_coord, popup=popup, icon=icon)
             marker.add_to(m)
 
-    print(f'mymap_{name}.html')
-    m.save(f'mymap_{name}.html')
+    print(f'Data\mymap_{name}.html')
+    m.save(f'Data\mymap_{name}.html')
