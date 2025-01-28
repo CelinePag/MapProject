@@ -29,12 +29,15 @@ class ClientStrava:
 
     
     def create_client(self):
+        cliend_id = 123240
+        print(f"http://www.strava.com/oauth/authorize?client_id={cliend_id}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read")
+        code = input("code:")
         response = requests.post(
                         url = 'https://www.strava.com/oauth/token',
                         data = {
                                 'client_id': self.id_athlete,
                                 'client_secret': self.id_secret,
-                                'code': "0cb76cf181e2d3e55dbac35cc439a99e7727de1e",
+                                'code': code, #"0cb76cf181e2d3e55dbac35cc439a99e7727de1e",
                                 'grant_type': 'authorization_code'
                                 })
         #Save json response as a variable

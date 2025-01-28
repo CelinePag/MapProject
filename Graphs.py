@@ -319,13 +319,7 @@ def try_smt(noms=['A', 'B'], values=[[30, 50], [10, 80]]):
     
 def stream_xy(df, x, y):
     for idx,row in df.iterrows():
-<<<<<<< HEAD
-        print(row[x])
-        print(row[y])
         if row[x] not in ["", 0, "0"] and row[y] not in ["", 0, "0"]:
-=======
-        if row[x] != 0 and row[y] != 0:
->>>>>>> 052420e716b2adfbf7ad44062644dc608c690c3a
             sns.scatterplot(x=st.liststr_to_list(row[x])[:50],
                             y=st.liststr_to_list(row[y])[:50])
     plt.plot()
