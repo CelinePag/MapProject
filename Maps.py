@@ -8,6 +8,11 @@ Created on Sun Jan  5 15:47:12 2025
 import folium
 import Settings as st
 import ProcessData as pr
+from folium.plugins import HeatMap
+from folium.plugins import OverlappingMarkerSpiderfier
+
+
+# TODO add option to show/hide polyline depending on the type of the activity
 
 def get_map(dfmax, name):
     """ Write a html file containing a map of all activities.
@@ -42,10 +47,27 @@ def get_map(dfmax, name):
                                     x_axe={"name":"Distance", "col_name":"distance_y"},
                                     y_axe={"name":"Vitesse", "col_name":"velocity_smooth"})
 
+    groups = {}
+    for type_activity in dfmax.type.unique():
+        groups[type_activity] = folium.FeatureGroup(name=type_activity).add_to(m)
+    
+    # groups["marker"] = folium.FeatureGroup(name="marker").add_to(m)
+    
     for idx, row in dfmax.iterrows():
         if row['latlng'] not in ["", 0, "0"]: # Activities with no spatial data are ignored
-            folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
-                            color=st.color_activities[row['type']]).add_to(m)
+            activity = row['type']
+            groups[activity].add_child(folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
+                                                       color=st.color_activities[row['type']],
+                                                       Highlight= True,
+                                                       name = "Wills",
+                                                       show=True,
+                                                       overlay=True,))
+            # folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
+            #                 color=st.color_activities[row['type']],
+            #                 Highlight= True,
+            #                 name = "Wills",
+            #                 show=True,
+            #                 overlay=True,).add_to(m)
             halfway_coord = st.listliststr_to_listlist(row['latlng'])[int(len(st.listliststr_to_listlist(row['latlng']))/2)]# popup text
             html = """
             <h3>{}</h3>
@@ -92,7 +114,128 @@ def get_map(dfmax, name):
             popup = folium.Popup(iframe, max_width=2650)
             icon = folium.Icon(color='black',icon_color=st.color_activities[row['type']], icon='info-sign')
             marker = folium.Marker(location=halfway_coord, popup=popup, icon=icon)
-            marker.add_to(m)
+            groups[activity].add_child(marker)
+            # groups["marker"].add_child(marker)
 
+            # marker.add_to(m)
+
+    # Add the OverlappingMarkerSpiderfier plugin
+    oms = OverlappingMarkerSpiderfier(
+        keep_spiderfied=True,  # Markers remain spiderfied after clicking
+        nearby_distance=20,  # Distance for clustering markers in pixel
+        circle_spiral_switchover=10,  # Threshold for switching between circle and spiral
+        leg_weight=2.0  # Line thickness for spider legs
+        )
+    oms.add_to(m)
+    m.get_root().add_child(get_legend())
+    # Add dark and light mode. 
+    folium.TileLayer('cartodbdark_matter',name="dark mode",control=True).add_to(m)
+    folium.TileLayer('cartodbpositron',name="light mode",control=True).add_to(m)
+    
+    
+    # We add a layer controller
+    folium.LayerControl(collapsed=False).add_to(m)
     print(f'Data\mymap_{name}.html')
     m.save(f'Data\mymap_{name}.html')
+    
+def get_legend():
+    # We import the required library:
+    from branca.element import Template, MacroElement
+    
+    template = """
+    {% macro html(this, kwargs) %}
+    
+    <!doctype html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>Strava Maps</title>
+      <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    
+      <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+      <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+      
+      <script>
+      $( function() {
+        $( "#maplegend" ).draggable({
+                        start: function (event, ui) {
+                            $(this).css({
+                                right: "auto",
+                                top: "auto",
+                                bottom: "auto"
+                            });
+                        }
+                    });
+    });
+    
+      </script>
+    </head>
+    <body>
+    
+     
+    <div id='maplegend' class='maplegend' 
+        style='position: absolute; z-index:9999; border:2px solid grey; background-color:rgba(255, 255, 255, 0.8);
+         border-radius:6px; padding: 10px; font-size:14px; right: 20px; bottom: 20px;'>
+         
+    <div class='legend-title'>Legend</div>
+    <div class='legend-scale'>
+      <ul class='legend-labels'>
+        <li><span style='background:orange;opacity:0.7;'></span>Hike</li>
+        <li><span style='background:red;opacity:0.7;'></span>Run</li>
+        <li><span style='background:green;opacity:0.7;'></span>Bike</li>
+        <li><span style='background:blue;opacity:0.7;'></span>Ski</li>      
+    
+      </ul>
+    </div>
+    </div>
+     
+    </body>
+    </html>
+    
+    <style type='text/css'>
+      .maplegend .legend-title {
+        text-align: left;
+        margin-bottom: 5px;
+        font-weight: bold;
+        font-size: 90%;
+        }
+      .maplegend .legend-scale ul {
+        margin: 0;
+        margin-bottom: 5px;
+        padding: 0;
+        float: left;
+        list-style: none;
+        }
+      .maplegend .legend-scale ul li {
+        font-size: 80%;
+        list-style: none;
+        margin-left: 0;
+        line-height: 18px;
+        margin-bottom: 2px;
+        }
+      .maplegend ul.legend-labels li span {
+        display: block;
+        float: left;
+        height: 16px;
+        width: 30px;
+        margin-right: 5px;
+        margin-left: 0;
+        border: 1px solid #999;
+        }
+      .maplegend .legend-source {
+        font-size: 80%;
+        color: #777;
+        clear: both;
+        }
+      .maplegend a {
+        color: #777;
+        }
+    </style>
+    {% endmacro %}"""
+    
+    macro = MacroElement()
+    macro._template = Template(template)
+    
+    return macro
+    
