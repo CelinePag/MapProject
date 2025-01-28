@@ -10,6 +10,7 @@ import Settings as st
 import ProcessData as pr
 from folium.plugins import HeatMap
 from folium.plugins import OverlappingMarkerSpiderfier
+from folium.map import Marker, Template, Layer
 
 
 # TODO add option to show/hide polyline depending on the type of the activity
@@ -59,9 +60,10 @@ def get_map(dfmax, name):
             groups[activity].add_child(folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
                                                        color=st.color_activities[row['type']],
                                                        Highlight= True,
-                                                       name = "Wills",
                                                        show=True,
-                                                       overlay=True,))
+                                                       overlay=True,
+                                                       tooltip=row['name'],
+                                                       pathCoords=st.listliststr_to_listlist(row['latlng'])))
             # folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
             #                 color=st.color_activities[row['type']],
             #                 Highlight= True,
@@ -113,7 +115,11 @@ def get_map(dfmax, name):
 
             popup = folium.Popup(iframe, max_width=2650)
             icon = folium.Icon(color='black',icon_color=st.color_activities[row['type']], icon='info-sign')
-            marker = folium.Marker(location=halfway_coord, popup=popup, icon=icon)
+            marker = folium.Marker(location=halfway_coord,
+                                   popup=popup,
+                                   icon=icon,
+                                   tooltip=row['name'],
+                                   pathCoords=st.listliststr_to_listlist(row['latlng']))
             groups[activity].add_child(marker)
             # groups["marker"].add_child(marker)
 
@@ -127,17 +133,79 @@ def get_map(dfmax, name):
         leg_weight=2.0  # Line thickness for spider legs
         )
     oms.add_to(m)
+    
+    # Add legend
     m.get_root().add_child(get_legend())
+    
     # Add dark and light mode. 
     folium.TileLayer('cartodbdark_matter',name="dark mode",control=True).add_to(m)
     folium.TileLayer('cartodbpositron',name="light mode",control=True).add_to(m)
     
+    # add full screen button
+    folium.plugins.Fullscreen().add_to(m)
     
     # We add a layer controller
     folium.LayerControl(collapsed=False).add_to(m)
+    
+    # Modify Marker template to include the onClick event
+    click_template_marker = """{% macro script(this, kwargs) %}
+        var {{ this.get_name() }} = L.marker(
+            {{ this.location|tojson }},
+            {{ this.options|tojson }}
+        ).addTo({{ this._parent.get_name() }}).on('click', onClick);
+    {% endmacro %}"""
+    
+    click_template_polyline = """{% macro script(this, kwargs) %}
+        var {{ this.get_name() }} = L.layer(
+            {{ this.location|tojson }},
+            {{ this.options|tojson }}
+        ).addTo({{ this._parent.get_name() }}).on('click', onClick);
+    {% endmacro %}"""
+    
+    # Change template to custom template
+    Marker._template = Template(click_template_marker)
+    # Layer._template = Template(click_template_polyline)
+
+    html = m.get_root()
+    html.script.add_child(get_script_ant(m))
+    
+    # Add leaflet antpath plugin cdn link
+    link = folium.JavascriptLink("https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js")
+    m.get_root().html.add_child(link)
+    
+    
     print(f'Data\mymap_{name}.html')
     m.save(f'Data\mymap_{name}.html')
-    
+
+def get_script_ant(m):
+    # Create the onClick listener function as a branca element and add to the map html
+    map_id = m.get_name()
+    click_js = f"""function onClick(e) {{                
+                        
+                     var coords = e.target.options.pathCoords;
+                     //var coords = JSON.stringify(coords);
+                     //alert(coords);
+                     var ant_path = L.polyline.antPath(coords, {{
+                    "delay": 400,
+                    "dashArray": [
+                        10,
+                        20
+                    ],
+                    "weight": 5,
+                    "color": "#0000FF",
+                    "pulseColor": "#FFFFFF",
+                    "paused": false,
+                    "reverse": false,
+                    "hardwareAccelerated": true
+                    }});                 
+                    
+                    ant_path.addTo({map_id});
+                     }}"""
+    # find a way to delete old ant paths ....
+                     
+    e = folium.Element(click_js)
+    return e
+
 def get_legend():
     # We import the required library:
     from branca.element import Template, MacroElement
