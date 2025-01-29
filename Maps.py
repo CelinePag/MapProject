@@ -15,6 +15,181 @@ from folium.map import Marker, Template, Layer
 
 # TODO add option to show/hide polyline depending on the type of the activity
 
+
+def centroid(polylines):
+    """ return the mean coordinates of all activities with spatial data """
+    x, y = [], []
+    for idx, polyline in polylines.items():
+        if polyline not in ["", 0, "0"]:
+            for coord in st.listliststr_to_listlist(polyline):
+                x.append(coord[0])
+                y.append(coord[1])
+    return [(min(x)+max(x))/2, (min(y)+max(y))/2]
+
+
+class MapStrava():
+    def __init__(self, dfmax, name):
+        location = centroid(dfmax['latlng'])
+        self.map = folium.Map(location=location, zoom_start=4)
+        self.profiles = {}
+        for profile_name, col_name in zip(["Elevation", "Speed"],
+                                          ["altitude", "velocity_smooth"]):
+            self.profiles[profile_name] = pr.get_profiles(dfmax,
+                                                          x_axe={"name":"Distance", "col_name":"distance_y"},
+                                                          y_axe={"name":profile_name, "col_name":col_name})
+        self.groups_activity = {}
+        for type_activity in dfmax.type.unique():
+            self.groups_activity[type_activity] = folium.FeatureGroup(name=type_activity).add_to(self.map)
+        
+        self.marker_cluster = folium.plugins.MarkerCluster(name="markers").add_to(self.map)
+        self.plot_activities(dfmax)
+        self.add_other_elements(location)
+        self.add_scripts()
+
+        print(f'Data\mymap_{name}.html')
+        self.map.save(f'Data\mymap_{name}.html')
+    
+    def add_scripts(self):
+        # Modify Marker template to include the onClick event
+        click_template_marker = """{% macro script(this, kwargs) %}
+            var {{ this.get_name() }} = L.marker(
+                {{ this.location|tojson }},
+                {{ this.options|tojson }}
+            ).addTo({{ this._parent.get_name() }}).on('click', onClick);
+        {% endmacro %}"""
+        
+
+        # Change template to custom template
+        Marker._template = Template(click_template_marker)
+
+    
+        html = self.map.get_root()
+        html.script.add_child(get_script_ant(self.map.get_name()))
+        
+        # Add leaflet antpath plugin cdn link
+        link = folium.JavascriptLink("https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js")
+        self.map.get_root().html.add_child(link)
+        
+    
+    def add_other_elements(self, location):
+        # Add the OverlappingMarkerSpiderfier plugin
+        oms = OverlappingMarkerSpiderfier(
+            keep_spiderfied=True,  # Markers remain spiderfied after clicking
+            nearby_distance=20,  # Distance for clustering markers in pixel
+            circle_spiral_switchover=10,  # Threshold for switching between circle and spiral
+            leg_weight=2.0  # Line thickness for spider legs
+            )
+        oms.add_to(self.map)
+        
+        # Add legend
+        self.map.get_root().add_child(get_legend())
+        
+        # Add dark and light mode. 
+        folium.TileLayer('cartodbdark_matter',name="dark mode",control=True).add_to(self.map)
+        folium.TileLayer('cartodbpositron',name="light mode",control=True).add_to(self.map)
+        
+        # add full screen button
+        folium.plugins.Fullscreen().add_to(self.map)
+        
+        # add search bar
+        folium.plugins.Geocoder().add_to(self.map)
+        
+        #cluster markers
+        # icon_create_function = """\
+        # function(cluster) {
+        #     return L.divIcon({
+        #     html: '<b>' + cluster.getChildCount() + '</b>',
+        #     className: 'marker-cluster marker-cluster-large',
+        #     iconSize: new L.Point(20, 20)
+        #     });
+        # }"""
+        # marker_cluster = folium.plugins.MarkerCluster(locations=location,
+        #                                               name="1000 clustered icons",
+        #                                               overlay=True,
+        #                                               control=True,
+        #                                               icon_create_function=icon_create_function,)
+
+        # marker_cluster.add_to(self.map)
+        
+        # We add a layer controller
+        folium.LayerControl(collapsed=False).add_to(self.map)
+    
+    def plot_activities(self, dfmax):
+        for idx, row in dfmax.iterrows():
+            if row['latlng'] not in ["", 0, "0"]: # Activities with no spatial data are ignored
+                self.plot_activity(row)
+    
+    def plot_activity(self, act):
+        activity_type = act['type']
+        self.groups_activity[activity_type].add_child(folium.PolyLine(st.listliststr_to_listlist(act['latlng']),
+                                                                    color=st.color_activities[act['type']],
+                                                                    Highlight= True,
+                                                                    show=True,
+                                                                    overlay=True,
+                                                                    tooltip=act['name'],
+                                                                    pathCoords=st.listliststr_to_listlist(act['latlng'])))
+        halfway_coord = st.listliststr_to_listlist(act['latlng'])[int(len(st.listliststr_to_listlist(act['latlng']))/2)]
+        
+        
+        # add marker to map
+        resolution, width, height = 75, 6, 6.5
+        iframe = folium.IFrame(self.get_popup_html(act),
+                               width=(width*resolution)+20,
+                               height=(height*resolution)+20)
+
+        popup = folium.Popup(iframe, max_width=2650)
+        icon = folium.Icon(color='black',
+                           icon_color=st.color_activities[act['type']],
+                           icon='info-sign')
+        marker = folium.Marker(location=halfway_coord,
+                               popup=popup,
+                               icon=icon,
+                               tooltip=act['name'],
+                               pathCoords=st.listliststr_to_listlist(act['latlng']))
+        
+        # self.groups_activity[activity_type].add_child(marker)
+        marker.add_to(self.marker_cluster)
+
+        
+    def get_popup_html(self, act):
+        html = """
+        <h3>{}</h3>
+            <p>
+                <code>
+                Date : {} <br>
+                Time : {}
+                </code>
+            </p>
+        <h4>{}</h4>
+            <p> 
+                <code>
+                    Distance&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.2f} km <br>
+                    Elevation Gain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.0f} m <br>
+                    Moving Time&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.0f}h{:.0f} min<br>
+                    Average Speed&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.2f} km/h (maximum: {:.2f} km/h) <br>
+                    Average Heart Rate&nbsp;&nbsp: {:.0f} bpm (maximum: {:.0f} bpm) <br>
+                </code>
+            </p>
+        <img src="data:image/png;base64,{}"> <br>
+        <img src="data:image/png;base64,{}"> 
+        """.format(
+            act['name'], 
+            act["start_date_local"].split(" ")[0], 
+            act["hour_of_day"],  
+            act['type'], 
+            act['distance_km'], 
+            act['total_elevation_gain'], 
+            int(act['moving_time_hr']),
+            (act['moving_time_hr']% 1)*60, 
+            act['average_speed_kmh'],
+            act['max_speed_kmh'], 
+            float(act['average_heartrate']),
+            float(act['max_heartrate']),
+            self.profiles["Elevation"][act['id']],
+            self.profiles["Speed"][act['id']], 
+        )
+        return html
+
 def get_map(dfmax, name):
     """ Write a html file containing a map of all activities.
     
@@ -26,160 +201,11 @@ def get_map(dfmax, name):
     Returns: None.
 
     """
-    # plot all activities on map
-    resolution, width, height = 75, 6, 6.5
-    
-    def centroid(polylines):
-        """ return the mean coordinates of all activities with spatial data """
-        x, y = [], []
-        for idx, polyline in polylines.items():
-            if polyline not in ["", 0, "0"]:
-                for coord in st.listliststr_to_listlist(polyline):
-                    x.append(coord[0])
-                    y.append(coord[1])
-        return [(min(x)+max(x))/2, (min(y)+max(y))/2]
+    MapStrava(dfmax, name)
 
 
-    m = folium.Map(location=centroid(dfmax['latlng']), zoom_start=4)
-    elevation_profile = pr.get_profiles(dfmax,
-                                        x_axe={"name":"Distance", "col_name":"distance_y"},
-                                        y_axe={"name":"Elevation", "col_name":"altitude"})
-    speed_profile = pr.get_profiles(dfmax,
-                                    x_axe={"name":"Distance", "col_name":"distance_y"},
-                                    y_axe={"name":"Vitesse", "col_name":"velocity_smooth"})
-
-    groups = {}
-    for type_activity in dfmax.type.unique():
-        groups[type_activity] = folium.FeatureGroup(name=type_activity).add_to(m)
-    
-    # groups["marker"] = folium.FeatureGroup(name="marker").add_to(m)
-    
-    for idx, row in dfmax.iterrows():
-        if row['latlng'] not in ["", 0, "0"]: # Activities with no spatial data are ignored
-            activity = row['type']
-            groups[activity].add_child(folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
-                                                       color=st.color_activities[row['type']],
-                                                       Highlight= True,
-                                                       show=True,
-                                                       overlay=True,
-                                                       tooltip=row['name'],
-                                                       pathCoords=st.listliststr_to_listlist(row['latlng'])))
-            # folium.PolyLine(st.listliststr_to_listlist(row['latlng']),
-            #                 color=st.color_activities[row['type']],
-            #                 Highlight= True,
-            #                 name = "Wills",
-            #                 show=True,
-            #                 overlay=True,).add_to(m)
-            halfway_coord = st.listliststr_to_listlist(row['latlng'])[int(len(st.listliststr_to_listlist(row['latlng']))/2)]# popup text
-            html = """
-            <h3>{}</h3>
-                <p>
-                    <code>
-                    Date : {} <br>
-                    Time : {}
-                    </code>
-                </p>
-            <h4>{}</h4>
-                <p> 
-                    <code>
-                        Distance&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.2f} km <br>
-                        Elevation Gain&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.0f} m <br>
-                        Moving Time&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.0f}h{:.0f} min<br>
-                        Average Speed&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp: {:.2f} km/h (maximum: {:.2f} km/h) <br>
-                        Average Heart Rate&nbsp;&nbsp: {:.0f} bpm (maximum: {:.0f} bpm) <br>
-                    </code>
-                </p>
-            <img src="data:image/png;base64,{}"> <br>
-            <img src="data:image/png;base64,{}"> 
-            """.format(
-                row['name'], 
-                row["start_date_local"].split(" ")[0], 
-                row["hour_of_day"],  
-                row['type'], 
-                row['distance_km'], 
-                row['total_elevation_gain'], 
-                int(row['moving_time_hr']),
-                (row['moving_time_hr']% 1)*60, 
-                row['average_speed_kmh'],
-                row['max_speed_kmh'], 
-                float(row['average_heartrate']),
-                float(row['max_heartrate']),
-                elevation_profile[row['id']],
-                speed_profile[row['id']], 
-            )
-            
-            # add marker to map
-            iframe = folium.IFrame(html,
-                                   width=(width*resolution)+20,
-                                   height=(height*resolution)+20)
-
-            popup = folium.Popup(iframe, max_width=2650)
-            icon = folium.Icon(color='black',icon_color=st.color_activities[row['type']], icon='info-sign')
-            marker = folium.Marker(location=halfway_coord,
-                                   popup=popup,
-                                   icon=icon,
-                                   tooltip=row['name'],
-                                   pathCoords=st.listliststr_to_listlist(row['latlng']))
-            groups[activity].add_child(marker)
-            # groups["marker"].add_child(marker)
-
-            # marker.add_to(m)
-
-    # Add the OverlappingMarkerSpiderfier plugin
-    oms = OverlappingMarkerSpiderfier(
-        keep_spiderfied=True,  # Markers remain spiderfied after clicking
-        nearby_distance=20,  # Distance for clustering markers in pixel
-        circle_spiral_switchover=10,  # Threshold for switching between circle and spiral
-        leg_weight=2.0  # Line thickness for spider legs
-        )
-    oms.add_to(m)
-    
-    # Add legend
-    m.get_root().add_child(get_legend())
-    
-    # Add dark and light mode. 
-    folium.TileLayer('cartodbdark_matter',name="dark mode",control=True).add_to(m)
-    folium.TileLayer('cartodbpositron',name="light mode",control=True).add_to(m)
-    
-    # add full screen button
-    folium.plugins.Fullscreen().add_to(m)
-    
-    # We add a layer controller
-    folium.LayerControl(collapsed=False).add_to(m)
-    
-    # Modify Marker template to include the onClick event
-    click_template_marker = """{% macro script(this, kwargs) %}
-        var {{ this.get_name() }} = L.marker(
-            {{ this.location|tojson }},
-            {{ this.options|tojson }}
-        ).addTo({{ this._parent.get_name() }}).on('click', onClick);
-    {% endmacro %}"""
-    
-    click_template_polyline = """{% macro script(this, kwargs) %}
-        var {{ this.get_name() }} = L.layer(
-            {{ this.location|tojson }},
-            {{ this.options|tojson }}
-        ).addTo({{ this._parent.get_name() }}).on('click', onClick);
-    {% endmacro %}"""
-    
-    # Change template to custom template
-    Marker._template = Template(click_template_marker)
-    # Layer._template = Template(click_template_polyline)
-
-    html = m.get_root()
-    html.script.add_child(get_script_ant(m))
-    
-    # Add leaflet antpath plugin cdn link
-    link = folium.JavascriptLink("https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js")
-    m.get_root().html.add_child(link)
-    
-    
-    print(f'Data\mymap_{name}.html')
-    m.save(f'Data\mymap_{name}.html')
-
-def get_script_ant(m):
+def get_script_ant(map_id):
     # Create the onClick listener function as a branca element and add to the map html
-    map_id = m.get_name()
     click_js = f"""function onClick(e) {{                
                         
                      var coords = e.target.options.pathCoords;
@@ -197,11 +223,15 @@ def get_script_ant(m):
                     "paused": false,
                     "reverse": false,
                     "hardwareAccelerated": true
-                    }});                 
-                    
+                    }});
+
                     ant_path.addTo({map_id});
                      }}"""
     # find a way to delete old ant paths ....
+    # {map_id}.eachLayer(function(layer){{
+    # if (layer instanceof L.Polyline.antpath)
+    #    {{ {map_id}.removeLayer(layer) }}
+    #    }});
                      
     e = folium.Element(click_js)
     return e

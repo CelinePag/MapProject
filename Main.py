@@ -19,7 +19,7 @@ pd.options.display.max_columns = None
 
 
 if __name__ == "__main__":
-    who = "celine"
+    who = "camille"
     Cli = ch.ClientStrava(who)
     Act = ch.Activities(Cli.client, Cli.nom) # 1 request
     
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     bikes = Act.df.loc[Act.df['type'] == 'Ride']
     otherActi = Act.df.loc[(Act.df['type'] != 'Run') & (Act.df['type'] != 'Hike') & (Act.df['type'] != 'TrailRun') & (Act.df['type'] != 'Ride')]
 
-    if True:
+    if False:
         print("récupération nouvelles activités...")
         Act.init_csv_streams(runs, nb=99, name="run")
         Act.init_csv_streams(hikes, nb=99, name="hikes")
