@@ -36,7 +36,6 @@ def get_profiles(dfmax, x_axe, y_axe):
         # figure
         fig, ax = plt.subplots(figsize=(6, 2))
         if row[x_axe["col_name"]] not in ["", 0, "0"] and row[y_axe["col_name"]] not in ["", 0, "0"]:
-    
             mini_df = pd.DataFrame({x_axe["name"]:st.liststr_to_list(row[x_axe["col_name"]]),
                                     y_axe["name"]:st.liststr_to_list(row[y_axe["col_name"]])})
             
@@ -49,8 +48,8 @@ def get_profiles(dfmax, x_axe, y_axe):
             if x_axe["name"] == "Distance":
                 mini_df[x_axe["name"]] = mini_df[x_axe["name"]]/1000
             ax = mini_df.plot(x=x_axe["name"], y=y_axe["name"], ax=ax, 
-            color=st.color_activities[row['type']],
-            legend=False, )
+                                color=st.color_activities[row['type']],
+                                legend=False, )
             
             ax.set_ylabel(y_axe["name"])
             ax.set_xlabel(x_axe["name"])

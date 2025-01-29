@@ -19,7 +19,7 @@ pd.options.display.max_columns = None
 
 
 if __name__ == "__main__":
-    who = "camille"
+    who = "celine"
     Cli = ch.ClientStrava(who)
     Act = ch.Activities(Cli.client, Cli.nom) # 1 request
     
@@ -32,11 +32,11 @@ if __name__ == "__main__":
 
     if True:
         print("récupération nouvelles activités...")
-        Act.init_csv_streams(runs, nb=300, name="run")
-        Act.init_csv_streams(hikes, nb=300, name="hikes")
-        Act.init_csv_streams(trails, nb=300, name="trail")
-        Act.init_csv_streams(bikes, nb=300, name="bike")
-        Act.init_csv_streams(otherActi, nb=100, name="other")
+        Act.init_csv_streams(runs, nb=99, name="run")
+        Act.init_csv_streams(hikes, nb=99, name="hikes")
+        Act.init_csv_streams(trails, nb=99, name="trail")
+        Act.init_csv_streams(bikes, nb=99, name="bike")
+        Act.init_csv_streams(otherActi, nb=99, name="other")
 
     dfs_run = pd.read_csv(f'{ch.PATH_CSV}\strava_activities_stream_{Cli.nom}_run.csv').fillna(0)
     dfs_hikes = pd.read_csv(f'{ch.PATH_CSV}\strava_activities_stream_{Cli.nom}_hikes.csv').fillna(0)
@@ -47,7 +47,6 @@ if __name__ == "__main__":
     
     dfs = pd.concat([dfs_run, dfs_hikes, dfs_trail, dfs_bike, dfs_other])
     dfmax = pd.merge(Act.df, dfs, on='id')#left_on='Unnamed: 0', right_on='team_name')
-    
     
     # ----------- Html map
     mp.get_map(dfmax, Cli.nom)

@@ -111,13 +111,15 @@ class Activities:
         activities = self.client.get_activities(limit=1000)
         data = []
         for activity in activities:
-            my_dict = activity.to_dict()
-            data.append([activity.id]+[my_dict.get(x) for x in my_cols])
-            
+            data.append([activity.id]+[getattr(activity, x) for x in my_cols])
         # Add id to the beginning of the columns, used when selecting a specific activity
         my_cols.insert(0,'id')
         df = pd.DataFrame(data, columns=my_cols)
         # Make all walks into hikes for consistency
+        
+        df['type'] = df['type'].apply(lambda x: x.root)
+        df['sport_type'] = df['sport_type'].apply(lambda x: x.root)
+        
         df['type'] = df['type'].replace('Walk','Hike')
         df['distance_km'] = df['distance']/1e3
         df['average_pace'] = (1/0.06)/df['average_speed']
@@ -149,17 +151,21 @@ class Activities:
         nb_request = 0
         for idx,row in df.iterrows():
             if (old is None) or (old is not None and df['id'][idx] not in old["id"].values):
-                if nb_request > nb:
+                if nb_request >= nb:
                     break
-                activity_data=self.client.get_activity_streams(df['id'][idx], types=types)
-                subdata=[df['id'][idx]]
-                for el in types:
-                    try:
-                        subdata.append(activity_data[el].data)
-                    except KeyError:
-                        subdata.append(None)
-                data.append(subdata)
-                nb_request += 1
+                try:
+                    activity_data=self.client.get_activity_streams(df['id'][idx], types=types)
+                    subdata=[df['id'][idx]]
+                    for el in types:
+                        try:
+                            subdata.append(activity_data[el].data)
+                        except KeyError:
+                            subdata.append(None)
+                    data.append(subdata)
+                    nb_request += 1
+                except:
+                    print(f"{nb_request} done, too many requests error")
+                    break
         print("nb request:", nb_request)
         types.insert(0,'id')
         df2 = pd.DataFrame(data, columns=types)
