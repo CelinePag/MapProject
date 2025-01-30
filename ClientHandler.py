@@ -104,7 +104,7 @@ class Activities:
                 "elev_high",
                 "elev_low",
                 "private",
-                "visibility",
+                # "visibility",
                 "has_heartrate",
                 "suffer_score"]
         
@@ -117,8 +117,24 @@ class Activities:
         df = pd.DataFrame(data, columns=my_cols)
         # Make all walks into hikes for consistency
         
-        df['type'] = df['type'].apply(lambda x: x.root)
-        df['sport_type'] = df['sport_type'].apply(lambda x: x.root)
+        try:
+            df['type'] = df['type'].apply(lambda x: x.root)
+            df['sport_type'] = df['sport_type'].apply(lambda x: x.root)
+        except AttributeError:
+            pass
+        
+        df['distance'] = df['distance'].apply(lambda x: x.magnitude)
+        df['total_elevation_gain'] = df['total_elevation_gain'].apply(lambda x: x.magnitude)
+        df['average_speed'] = df['average_speed'].apply(lambda x: x.magnitude)
+        df['max_speed'] = df['max_speed'].apply(lambda x: x.magnitude)
+
+
+        # df['distance'] = df['distance'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
+        # df['total_elevation_gain'] = df['total_elevation_gain'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
+        # df['average_speed'] = df['average_speed'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
+        # df['max_speed'] = df['max_speed'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
+        # df['moving_time'] = df['moving_time'].apply(lambda x: x if type(x)==float else float(x.split(" ")[-1].split(":")[0]*3600+x.split(" ")[-1].split(":")[1]*60))
+
         
         df['type'] = df['type'].replace('Walk','Hike')
         df['distance_km'] = df['distance']/1e3

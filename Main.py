@@ -19,7 +19,7 @@ pd.options.display.max_columns = None
 
 
 if __name__ == "__main__":
-    who = "camille"
+    who = "celine"
     Cli = ch.ClientStrava(who)
     Act = ch.Activities(Cli.client, Cli.nom) # 1 request
     
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     bikes = Act.df.loc[Act.df['type'] == 'Ride']
     otherActi = Act.df.loc[(Act.df['type'] != 'Run') & (Act.df['type'] != 'Hike') & (Act.df['type'] != 'TrailRun') & (Act.df['type'] != 'Ride')]
 
-    if False:
+    if True:
         print("récupération nouvelles activités...")
         Act.init_csv_streams(runs, nb=99, name="run")
         Act.init_csv_streams(hikes, nb=99, name="hikes")
@@ -47,6 +47,8 @@ if __name__ == "__main__":
     
     dfs = pd.concat([dfs_run, dfs_hikes, dfs_trail, dfs_bike, dfs_other])
     dfmax = pd.merge(Act.df, dfs, on='id')#left_on='Unnamed: 0', right_on='team_name')
+    
+    print(dfmax.head(5))
     
     # ----------- Html map
     mp.get_map(dfmax, Cli.nom)
