@@ -6,15 +6,9 @@ Created on Sun Mar 17 09:55:42 2024
 """
 
 import pandas as pd
-import os
-from tqdm import tqdm# disable warnings
-
-
-import Settings as st
 import ClientHandler as ch
 import Graphs as gr
 import Maps as mp
-import ProcessData as pr
 pd.options.display.max_columns = None
 
 

@@ -112,8 +112,13 @@ class Activities:
         data = []
         for activity in activities:
             data.append([activity.id]+[getattr(activity, x) for x in my_cols])
+            try:
+                data[-1][1] = pd.to_datetime(data[-1][1]) 
+            except:
+                pass
         # Add id to the beginning of the columns, used when selecting a specific activity
         my_cols.insert(0,'id')
+        print(data)
         df = pd.DataFrame(data, columns=my_cols)
         # Make all walks into hikes for consistency
         
@@ -123,17 +128,13 @@ class Activities:
         except AttributeError:
             pass
         
-        df['distance'] = df['distance'].apply(lambda x: x.magnitude)
-        df['total_elevation_gain'] = df['total_elevation_gain'].apply(lambda x: x.magnitude)
-        df['average_speed'] = df['average_speed'].apply(lambda x: x.magnitude)
-        df['max_speed'] = df['max_speed'].apply(lambda x: x.magnitude)
-
-
-        # df['distance'] = df['distance'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
-        # df['total_elevation_gain'] = df['total_elevation_gain'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
-        # df['average_speed'] = df['average_speed'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
-        # df['max_speed'] = df['max_speed'].apply(lambda x: x if type(x)==float else float(x.split(" ")[0]))
-        # df['moving_time'] = df['moving_time'].apply(lambda x: x if type(x)==float else float(x.split(" ")[-1].split(":")[0]*3600+x.split(" ")[-1].split(":")[1]*60))
+        try:
+            df['distance'] = df['distance'].apply(lambda x: x.magnitude)
+            df['total_elevation_gain'] = df['total_elevation_gain'].apply(lambda x: x.magnitude)
+            df['average_speed'] = df['average_speed'].apply(lambda x: x.magnitude)
+            df['max_speed'] = df['max_speed'].apply(lambda x: x.magnitude)
+        except AttributeError:
+            pass
 
         
         df['type'] = df['type'].replace('Walk','Hike')
