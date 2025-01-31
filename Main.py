@@ -12,6 +12,8 @@ import Maps as mp
 pd.options.display.max_columns = None
 
 
+# TODO
+
 if __name__ == "__main__":
     who = "celine"
     Cli = ch.ClientStrava(who)
@@ -41,9 +43,7 @@ if __name__ == "__main__":
     
     dfs = pd.concat([dfs_run, dfs_hikes, dfs_trail, dfs_bike, dfs_other])
     dfmax = pd.merge(Act.df, dfs, on='id')#left_on='Unnamed: 0', right_on='team_name')
-    
-    print(dfmax.head(5))
-    
+        
     # ----------- Html map
     mp.get_map(dfmax, Cli.nom)
     
