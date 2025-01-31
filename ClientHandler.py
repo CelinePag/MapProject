@@ -118,7 +118,6 @@ class Activities:
                 pass
         # Add id to the beginning of the columns, used when selecting a specific activity
         my_cols.insert(0,'id')
-        print(data)
         df = pd.DataFrame(data, columns=my_cols)
         # Make all walks into hikes for consistency
         
@@ -152,6 +151,8 @@ class Activities:
         df['elapsed_time_hr'] = df['elapsed_time'].astype('int64')/3600e9
         df['moving_time_hr'] = df['moving_time'].astype('int64')/3600e9
         df.to_csv(f'{PATH_CSV}\strava_activities_{nom}.csv')
+        
+        # TODO make sure that all times are in datetime format by the end 
 
 
     def init_csv_streams(self, df, nb=50, name=""):
