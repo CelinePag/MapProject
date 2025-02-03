@@ -46,12 +46,11 @@ class GraphActs():
         plt.show()
         
     def best_distance(self, distance=1000):
-        results = prd.get_best_distance(self.df, distance)
-        df_mini = pd.DataFrame.from_dict(results)
-        hue="what"
+        df_mini = prd.get_best_distance(self.df, distance)
+        hue="sport_type"
         
-        self.temporal("temps", f"durée du meilleur {int(distance/1000)}k", hue=hue, newdf=df_mini)
-        self.temporal("pace", f"vitesse du meilleur {int(distance/1000)}k", hue=hue, newdf=df_mini)
+        # self.temporal("temps", f"Duration of best {int(distance/1000)}k [min]", hue=hue, newdf=df_mini)
+        self.temporal("pace_best", f"Pace of best {int(distance/1000)}k [min/km]", hue=hue, newdf=df_mini)
             
         # param_graph(df, 'date', "temps", f"durée du meilleur {int(meas/1000)}k", huea=hue)
         # param_graph(df, 'date', "elevation", "dénivelé total de la sortie", huea=hue)
@@ -63,54 +62,56 @@ class GraphActs():
     
     
 
-    def temporal(self, y, ylabel, hue=None, typegraph="scatterplot", figsize=(15,7), daylight=False, newdf=False):
-        cols = [self.timedata, y] if hue is None else [self.timedata, y, hue]
-        df_mini = self.df[cols] if not newdf else newdf[cols]
+    def temporal(self, y, ylabel, hue=None, typegraph="scatterplot", figsize=(15,7), daylight=False, newdf=None):
+        cols = [self.timedata, y, "latlng"] if hue is None else [self.timedata, y, hue, "latlng"]
+        df_mini = self.df[cols] if newdf is None else newdf[cols]
         pace = True if "pace" in y else False 
         
-        # if heure:
-        #     df[values] = pd.to_datetime(df[values])
+        
+        # df_mini = df_mini.head(10)
+                
+        if daylight:
+            df_mini[y] = pd.to_datetime(df_mini[y])
         
         fig, ax = plt.subplots(figsize=figsize)
         sns.scatterplot(x=self.timedata, y=y, data=df_mini, hue=hue, ax=ax)
         
         if daylight:
             df_mini = prd.add_daylight(df_mini, self.timedata, y)
-            line = []
+            lines = {}
             for when in ['sunrise', 'sunset', 'dusk', 'dawn']:
-                line.append(sns.lineplot(data=df_mini, x=self.timedata, y=when, color='grey', ax=ax, alpha=.5))
-            lines = line[-1].get_lines()
-
-            plt.fill_between(lines[0].get_xdata(),
-                             lines[0].get_ydata(),
-                             lines[-1].get_ydata(),
-                             color='black', alpha=.2 ,zorder=0)
-            plt.fill_between(lines[0].get_xdata(),
-                             lines[1].get_ydata(),
-                             lines[2].get_ydata(),
-                             color='black', alpha=.2 ,zorder=0)
-            plt.fill_between(lines[0].get_xdata(),
-                             lines[-1].get_ydata(),
-                             min(lines[0].get_ydata())-0.005,
-                             color='black', alpha=.5 ,zorder=0)
-            plt.fill_between(lines[0].get_xdata(),
-                             lines[2].get_ydata(),
-                             max(lines[1].get_ydata())+0.12,
-                             color='black', alpha=0.5 ,zorder=0)
+                df_mini[when] = pd.to_datetime(df_mini[when])
+                l = sns.lineplot(data=df_mini, x=self.timedata, y=when, color='grey', ax=ax, alpha=.5)
+                lines[when] = l.get_lines()[-1]
             
-            pos = [str(df_mini[y][0]).split(" ")[0] + f" {y:02d}:00:00" for y in range(3,24)]
-            lab = [f"{y}h" for y in range(3,24)]
+            ax.fill_between(df_mini[self.timedata], df_mini["sunrise"], df_mini["dawn"],
+                            interpolate=True,
+                            color='black', alpha=.2 ,zorder=0)
+            ax.fill_between(df_mini[self.timedata], df_mini["sunset"], df_mini["dusk"],
+                            interpolate=True,
+                            color='black', alpha=.2 ,zorder=0)
+            ax.fill_between(df_mini[self.timedata], df_mini["dawn"],  df_mini[y][0].replace(hour=0, minute=0),
+                            interpolate=True,
+                            color='black', alpha=.5 ,zorder=0)
+            ax.fill_between(df_mini[self.timedata], df_mini["dusk"],  df_mini[y][0].replace(hour=23, minute=59),
+                            interpolate=True,
+                            color='black', alpha=.5 ,zorder=0)    
+                
+
+            pos = [str(df_mini[y][0]).split(" ")[0] + f" {h:02d}:00:00" for h in range(0,24)]
+            lab = [f"{h}h" for h in range(0,24)]
             plt.yticks(pos, lab)
-            ax.set_ylim(np.mean(lines[0].get_ydata())-0.15, np.mean(lines[0].get_ydata())+0.75)
+            ax.set_ylim(df_mini[y][0].replace(hour=0, minute=0), df_mini[y][0].replace(hour=23, minute=59))
 
         plt.grid()
-        pos = [f"{y}-{m:02d}-01" for m in range(1,13) for y in range(2022,2025)] # TODO change hardcoded
+        pos = [f"{y}-{m:02d}-01" for m in range(1,13) for y in range(2022,2026)] # TODO change hardcoded
         lab = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'June',  
                'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
-        lab = [k+f"-{y}" for k in lab for y in range(22,25)] # TODO change hardcoded
+        lab = [k+f"-{y}" for k in lab for y in range(22,26)] # TODO change hardcoded
         plt.xticks(pos, lab)
         
         plt.ylabel(ylabel)
+        plt.xlabel(None)
         if pace:
             ax.yaxis.set_major_locator(MultipleLocator(1))
             ax.yaxis.set_minor_locator(MultipleLocator(0.166667))

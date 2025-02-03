@@ -66,76 +66,86 @@ def add_daylight(df, x, y):
                     df.at[idx, when] = str(df[y][0]).split(" ")[0] + f" 00:00:00"
                 elif when in ['sunset', 'dusk']:
                     df.at[idx, when] = str(df[y][0]).split(" ")[0] + f" 23:59:59"
+
     for when in periods:
         df[when] = pd.to_datetime(df[when])
     return df
 
 
 def get_best_distance(dfmax, distanceK):
-    df2 = dfmax.sort_values(by="start_date_local")
-    noms = []
-    wheres = []
-    results = {'temps':[], "date":[], "heartrate":[], "where":[], "what":[], "elevation":[], "delevation":[]}
+    df2 = dfmax.sort_values(by="start_date_local")[["id", "name", "distance_x", "sport_type",
+                                                    "start_date_local",
+                                                    "distance_y", "time",
+                                                    "heartrate", "altitude"]]
+    
+    df2 = df2[df2["distance_x"] >= distanceK] # only take activities longer than distanceK
+    df2["elevation_best"] = 0
+    df2["delevation_best"] = 0
+    df2["heartrate_best"] = 0
+    df2["pace_best"] = 0
+    df2["speed_best"] = 0
+    df2["start_best"] = 0
+    df2["end_best"] = 0
+    df2["time_best"] = 0
+
     for idx,row in df2.iterrows():
         if row["distance_y"] not in (0,'0') and row["time"] not in (0,'0'):
+
             dist = [float(k) for k in row["distance_y"][1:-1].split(",")]
             tim = [float(k) for k in row["time"][1:-1].split(",")]
-            elevation = [float(k) for k in row["altitude"][1:-1].split(",")]
-            if row["heartrate"] not in (0,'0'):
+            try:
                 heart = [float(k) for k in row["heartrate"][1:-1].split(",")]
-            else:
-                heart = len(tim)*[0]
-            if dist[-1] >= distanceK:
-                val5k = 500000
-                rec = [0,0]
-                elev_tot = 0
-                delev_tot = 0
-                values = [[0],[0],[0]]
-                mean_heart = 0
-                elev_p = elevation[0]
-                for x,t,h,e in zip(dist, tim, heart,elevation):
-                    if e > elev_p:
-                        elev_tot += e - elev_p
-                    else:
-                        delev_tot += elev_p - e
-                    elev_p = e
+            except ValueError:
+                heart = len(dist)*[0]
+            try:
+                alt = [float(k) for k in row["altitude"][1:-1].split(",")]
+            except ValueError:
+                alt = len(dist)*[0]
+            
+            
+            best_time_K = 500000
+            memory = {"x":[0], "t":[0]}
+            x_best = [0,0]
+            for x,t in zip(dist, tim):
+                memory["x"].append(float(x))
+                memory["t"].append(float(t))
+                if x > distanceK + 5:
+                    while memory["x"][-1] - memory["x"][0] > distanceK + 5:
+                        memory["x"] = memory["x"][1:]
+                        memory["t"] = memory["t"][1:]
+                    time_K = (memory["t"][-1] - memory["t"][0])/60
+                    if time_K < best_time_K:
+                        best_time_K = time_K
+                        x_best = [memory["x"][0], memory["x"][-1]]
 
-                    values[0].append(float(x))
-                    values[1].append(float(t))
-                    values[2].append(float(h))
-                    if x > distanceK + 5:
-                        while values[0][-1] - values[0][0] > distanceK + 5:
-                            values[0] = values[0][1:]
-                            values[1] = values[1][1:]
-                            values[2] = values[2][1:]
-                        test5k = (values[1][-1] - values[1][0])/60
-                        if test5k < val5k:
-                            val5k = test5k
-                            rec = [values[0][0], values[0][-1]]
-                            mean_heart = int(np.mean(values[2]))
-                noms.append(row["name"])
-                wheres.append([r*100/row['distance_x'] for r in rec])
-                
-                results['what'].append(row["sport_type"])
-                results['elevation'].append(elev_tot)
-                results['delevation'].append(delev_tot)
-                results['temps'].append(val5k)
-                results['heartrate'].append(mean_heart)
-                results['where'].append(rec)
-                results['date'].append(row["start_date_local"])
-                print(row["name"], row["sport_type"], f"best {int(distanceK/1000)}k : ", val5k, rec, mean_heart)
-    
-    mean_temps = np.mean(results['temps'])
-    std_temps = np.std(results['temps'])
-    
-    # try_smt(noms, wheres)
-    
-    for key in ['date', 'heartrate', 'where', 'what', 'temps', "elevation", 'delevation']:
-        results[key] = [k for k,j in zip(results[key],results['temps']) if j <= mean_temps+2*std_temps]
+            i_deb, i_fin = dist.index(x_best[0]), dist.index(x_best[-1])
+            elevation_best = 0
+            delevation_best = 0
+            elev_ref = alt[i_deb]
+            for e in alt[i_deb: i_fin+1]:
+                if e > elev_ref:
+                    elevation_best += e - elev_ref
+                else:
+                    delevation_best += elev_ref - e
+                elev_ref = e
 
-    results['pace'] = [r/(distanceK/1000) for r in results['temps']]
-    results['speed'] = [(distanceK/1000)/(r/60) for r in results['temps']]
-    return results
+            df2.at[idx, "time_best"] = best_time_K
+            df2.at[idx, "elevation_best"] = elevation_best
+            df2.at[idx, "delevation_best"] = delevation_best
+            df2.at[idx, "heartrate_best"] = int(np.mean(heart[i_deb:i_fin+1]))
+            df2.at[idx, "pace_best"] = best_time_K/(distanceK/1000)
+            df2.at[idx, "speed_best"] = (distanceK/1000)/(best_time_K/60)
+            df2.at[idx, "start_best"] = x_best[0]
+            df2.at[idx, "end_best"] = x_best[-1]
+    
+    # remove outliers
+    mean_duration = df2['time_best'].mean()
+    std_duration = df2['time_best'].std()
+    df2["z_score"] = (df2['time_best']-mean_duration)/std_duration
+    threshold = 3
+    df2 = df2[df2["z_score"] <= threshold]
+
+    return df2
 
 
 
