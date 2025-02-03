@@ -22,6 +22,8 @@ color_activities = {'Ride':'#18a81a',
                      'Sail':"#d9308a",
                      'RockClimbing':"black"}
 
+day_of_week_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ]
+color_weekday = {'Monday':"#a83a32", 'Tuesday':"#078743", 'Wednesday':"#737373", 'Thursday':"#d96309", 'Friday':"#144a2e", 'Saturday':"#566bbf", 'Sunday':"#a562bd" }
 
 typact_run = ['Run', 'TrailRun']
 typact_foot = typact_run + ['Walk', "Hike"]

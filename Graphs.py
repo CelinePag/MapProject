@@ -25,18 +25,15 @@ class GraphActs():
         self.df[timedata] = pd.to_datetime(self.df[timedata])
         pass
     
-    def weekdays(self, list_sport_type, list_data, figsize=(7,5)):
-        day_of_week_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday' ]
-        
-        df = self.df.loc[self.df['sport_type'].isin(list_sport_type)]
-        
-        fig = plt.figure(figsize=(7*len(list_data), 5*len(list_sport_type)))
-        gs = fig.add_gridspec(len(list_sport_type), len(list_data))
-        for n, sport_type in enumerate(list_sport_type):
+    def weekdays_violin(self, list_data, figsize=(7,5)):
+        nb_sport_type = len(self.df['sport_type'].unique())
+        fig = plt.figure(figsize=(7*len(list_data), 5*nb_sport_type))
+        gs = fig.add_gridspec(nb_sport_type, len(list_data))
+        for n,sport_type in enumerate(self.df['sport_type'].unique()):
             for m, data in enumerate(list_data):
                 ax = fig.add_subplot(gs[n, m])
-                sns.violinplot(x='day_of_week', y=data, data=df.loc[df['sport_type'] == sport_type], 
-                                    order=day_of_week_order, 
+                sns.violinplot(x='day_of_week', y=data, data=self.df.loc[self.df['sport_type'] == sport_type], 
+                                    order=st.day_of_week_order, 
                                     palette='pastel')
                 ax.set_xlabel(sport_type)
                 if data in ('distance_km', 'total_elevation_gain'):
@@ -44,6 +41,27 @@ class GraphActs():
         
         fig.tight_layout()
         plt.show()
+        
+        
+    def weekdays_pie(self, list_data, figsize=(7,5)):
+        mini_df = self.df[["day_of_week"]+list_data]
+        mini_df["day_of_week"] = pd.Categorical(mini_df["day_of_week"], categories = st.day_of_week_order)
+        mini_df.sort_values(by = "day_of_week")
+        mini_df = mini_df.groupby('day_of_week').sum()
+        fig,ax = plt.subplots(1, 3, figsize=(7*len(list_data), 5))
+        for m, data in enumerate(list_data): 
+            mini_df.plot.pie(y=data, autopct='%.0f%%', ax=ax[m], label=data,
+                             colors=st.color_weekday.values(),
+                             wedgeprops = {'linewidth':3, 'edgecolor':'white'})
+            ax[m].get_legend().remove()
+            ax[m].set_title(data)
+            ax[m].set_ylabel(None)
+            
+        fig.legend(st.day_of_week_order, loc=7)
+        fig.tight_layout()
+        fig.subplots_adjust(right=0.9)
+        plt.show()
+        
         
     def best_distance(self, distance=1000):
         df_mini = prd.get_best_distance(self.df, distance)
