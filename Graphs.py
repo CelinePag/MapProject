@@ -34,7 +34,7 @@ class GraphActs():
                 ax = fig.add_subplot(gs[n, m])
                 sns.violinplot(x='day_of_week', y=data, data=self.df.loc[self.df['sport_type'] == sport_type], 
                                     order=st.day_of_week_order, 
-                                    palette='pastel')
+                                    palette='pastel', cut=0)
                 ax.set_xlabel(sport_type)
                 if data in ('distance_km', 'total_elevation_gain'):
                     ax.set_ylim(0, None)
@@ -61,7 +61,7 @@ class GraphActs():
         fig.tight_layout()
         fig.subplots_adjust(right=0.9)
         plt.show()
-        
+    
         
     def best_distance(self, distance=1000):
         df_mini = prd.get_best_distance(self.df, distance)
@@ -82,10 +82,10 @@ class GraphActs():
 
     def temporal(self, y, ylabel, hue=None, typegraph="scatterplot", figsize=(15,7), daylight=False, newdf=None):
         cols = [self.timedata, y, "latlng"] if hue is None else [self.timedata, y, hue, "latlng"]
+        
         df_mini = self.df[cols] if newdf is None else newdf[cols]
         pace = True if "pace" in y else False 
-        
-        
+
         # df_mini = df_mini.head(10)
                 
         if daylight:

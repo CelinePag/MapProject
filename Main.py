@@ -41,33 +41,31 @@ if __name__ == "__main__":
     dfs_bike = pd.read_csv(f'{ch.PATH_CSV}\strava_activities_stream_{Cli.nom}_bike.csv').fillna(0)
     dfs_other = pd.read_csv(f'{ch.PATH_CSV}\strava_activities_stream_{Cli.nom}_other.csv').fillna(0)
 
-    
-    dfs = pd.concat([dfs_run, dfs_hikes, dfs_trail, dfs_bike, dfs_other])
-    dfmax = pd.merge(Act.df, dfs, on='id')#left_on='Unnamed: 0', right_on='team_name')
+    dfs = pd.concat([dfs_run, dfs_hikes, dfs_trail, dfs_bike, dfs_other])   
+    dfmax = pd.merge(Act.df, dfs, on='id', how="outer")#left_on='Unnamed: 0', right_on='team_name')
         
     # ----------- Html map
     # mp.get_map(dfmax, Cli.nom)
     
     # ----------- various graphs
-    # gr.get_best_5K(dfmax, 5000, list_type=['Run'])
     # gr.distance_week(dfmax.loc[dfmax['type'] == 'Run'], ["Ride, Run"])
     # gr.graph_many(dfmax, ["Run", "TrailRun"], ['type','moving_time_hr','distance_km','total_elevation_gain','average_speed'])
     # gr.stream_xy(dfmax, "distance_y", "heartrate")
     
-    
+    # print(dfmax)
     graphs = gr.GraphActs(dfmax[dfmax["sport_type"].isin(st.typact_sport)])
     graphs.temporal("total_elevation_gain", "Total elevation gain [m]", hue="sport_type")
     graphs.temporal("distance_km", "Distance [km]", hue="sport_type")
     graphs.temporal("elev_high", "Max altitude reached [m]", hue="sport_type")
     graphs.temporal("moving_time_hr", "Moving time [hour]", hue="sport_type")
     
-    # graphs.temporal("hour_of_day", "Start of Activity", hue="sport_type", daylight=True)
+    graphs.temporal("hour_of_day", "Start of Activity", hue="sport_type", daylight=True)
     
-    graphs.weekdays(st.typact_sport, ['distance_km', "average_pace", 'total_elevation_gain'])
-    
-    
-    
+    graphs.weekdays_violin(['distance_km', "average_speed_kmh", 'total_elevation_gain'])
+    graphs.weekdays_pie(['distance_km', 'total_elevation_gain', "moving_time_hr"])
+
+
     graphs_foot = gr.GraphActs(dfmax[dfmax["sport_type"].isin(st.typact_run)])
-    graphs_foot.best_distance(distance=1000)
+    graphs_foot.best_distance(distance=5000)
 
     

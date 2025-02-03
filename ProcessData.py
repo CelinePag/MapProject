@@ -76,7 +76,8 @@ def get_best_distance(dfmax, distanceK):
     df2 = dfmax.sort_values(by="start_date_local")[["id", "name", "distance_x", "sport_type",
                                                     "start_date_local",
                                                     "distance_y", "time",
-                                                    "heartrate", "altitude"]]
+                                                    "heartrate", "altitude",
+                                                    "latlng"]]
     
     df2 = df2[df2["distance_x"] >= distanceK] # only take activities longer than distanceK
     df2["elevation_best"] = 0
@@ -89,7 +90,7 @@ def get_best_distance(dfmax, distanceK):
     df2["time_best"] = 0
 
     for idx,row in df2.iterrows():
-        if row["distance_y"] not in (0,'0') and row["time"] not in (0,'0'):
+        if row["distance_y"] not in (0,'0',np.nan, None) and row["time"] not in (0,'0',np.nan, None):
 
             dist = [float(k) for k in row["distance_y"][1:-1].split(",")]
             tim = [float(k) for k in row["time"][1:-1].split(",")]

@@ -28,7 +28,7 @@ color_weekday = {'Monday':"#a83a32", 'Tuesday':"#078743", 'Wednesday':"#737373",
 typact_run = ['Run', 'TrailRun']
 typact_foot = typact_run + ['Walk', "Hike"]
 typact_winter = ['BackcountrySki', 'NordicSki', 'AlpineSki', 'IceSkate']
-typact_sport = typact_foot + ['BackcountrySki', 'NordicSki']
+typact_sport = typact_foot + ['BackcountrySki', 'NordicSki', 'Ride']
 
 def listliststr_to_listlist(st):
     return [[float(i.split(", ")[j]) for j in range(len(i.split(", ")))] for i in st[2:-2].split("], [")]
