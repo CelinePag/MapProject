@@ -16,7 +16,7 @@ pd.options.display.max_columns = None
 # TODO
 
 if __name__ == "__main__":
-    who = "celine"
+    who = "gabrielle"
     Cli = ch.ClientStrava(who)
     Act = ch.Activities(Cli.client, Cli.nom) # 1 request
     

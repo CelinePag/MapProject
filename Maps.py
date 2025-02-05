@@ -9,12 +9,13 @@ import folium
 import numpy as np
 import Settings as st
 import ProcessData as pr
-from folium.plugins import HeatMap
 from folium.plugins import OverlappingMarkerSpiderfier
 from folium.map import Marker, Template, Layer
 
 
-# TODO add option to show/hide polyline depending on the type of the activity
+#TODO: import gpx/polyline/similar by user to the map
+#TODO: link with other data sources (ut, etc.)
+#TODO: generate graphs a la volée instead of at the start
 
 
 def centroid(polylines):
@@ -43,10 +44,11 @@ class MapStrava():
             if type_activity in st.typact_sport:
                 self.groups_activity[type_activity] = folium.FeatureGroup(name=type_activity).add_to(self.map)
         
-        self.marker_cluster = folium.plugins.MarkerCluster(name="markers").add_to(self.map)
+        self.marker_cluster = folium.plugins.MarkerCluster(name="Markers").add_to(self.map)
         self.plot_activities(dfmax)
         self.add_other_elements(location)
         self.add_scripts()
+        self.add_control_layers()
 
         print(f'Data\mymap_{name}.html')
         self.map.save(f'Data\mymap_{name}.html')
@@ -60,11 +62,19 @@ class MapStrava():
             ).addTo({{ this._parent.get_name() }}).on('click', onClick);
         {% endmacro %}"""
         
+        click_template_polyline = """{% macro script(this, kwargs) %}
+            var {{ this.get_name() }} = L.polyline(
+                {{ this.location|tojson }},
+                {{ this.options|tojson }}
+            ).addTo({{ this._parent.get_name() }}).on('click', onClick);
+        {% endmacro %}"""
+        
 
         # Change template to custom template
         Marker._template = Template(click_template_marker)
+        
+        Layer._template = Template(click_template_polyline)
 
-    
         html = self.map.get_root()
         html.script.add_child(get_script_ant(self.map.get_name()))
         
@@ -72,6 +82,83 @@ class MapStrava():
         link = folium.JavascriptLink("https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js")
         self.map.get_root().html.add_child(link)
         
+    
+    def add_control_layers(self):
+        
+        # Add dark and light mode. 
+        folium.TileLayer('cartodbdark_matter',name="dark mode",control=True,show=False).add_to(self.map)
+        folium.TileLayer('cartodbpositron',name="light mode",control=True,show=False).add_to(self.map)
+        # folium.TileLayer('Thunderforest.OpenCycleMap',name="Cyclo map",control=True,show=False).add_to(self.map)
+        # folium.TileLayer('Thunderforest.Outdoors',name="Outdoor map",control=True,show=False).add_to(self.map)
+        # folium.TileLayer('Thunderforest.SpinalMap',name="Try me",control=True,show=False).add_to(self.map)
+
+        
+            
+        # Add Avalanche info Norway
+        data = [("Bratthet_snoskred", 'Slopes NOR', r"https://nve.geodataonline.no:443/arcgis/services/Bratthet/MapServer/WmsServer?", 1),
+                ("Skredtype", 'Historic avalanche NOR', r"https://nve.geodataonline.no:443/arcgis/services/SkredHendelser1/MapServer/WmsServer?", 11)]
+        # avalanche_NO_data = {l:folium.FeatureGroup(name=f'{n}').add_to(self.map) for (l,n,_,_) in data}
+        for (l,n,s,z) in data:
+            folium.WmsTileLayer(
+                url=s,
+                name=f'{n}', 
+                fmt="image/png",
+                layers=f'{l}', 
+                transparent=True,
+                opacity=0.6,
+                overlay=True,
+                control=True,
+                show=False,
+                min_zoom=z,
+            ).add_to(self.map)
+            # self.map.add_child(avalanche_NO_data[l])
+            
+        # Add Avalanche info France
+        folium.WmsTileLayer(
+            url="https://data.geopf.fr/wms-r/wms?",
+            version="1.3.0" ,
+            name='Slopes FRA', 
+            fmt="image/png",
+            layers='GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN', 
+            attr="IGN",
+            opacity=0.6,
+            transparent=True,
+            overlay=True,
+            control=True,
+            show=False,
+            min_zoom=8,
+        ).add_to(self.map)
+        
+        # Add layers strava heatmap
+        color_heatmap = {"all":"hot", "run":"hot", "ride":"hot", "winter":"purple"}
+        # strava_data = {f"{name}":folium.FeatureGroup(name=f'strava_{name}').add_to(self.map) for name in ["all", "run", "ride", "winter"]}
+        for name in ["all", "run", "ride", "winter"]:
+            folium.TileLayer(f'https://proxy.nakarte.me/https/heatmap-external-a.strava.com/tiles-auth/{name}/{color_heatmap[name]}/'+'{z}/{x}/{y}.png', 
+                     attr='to be written', 
+                     name=f'Strava heatmaps {name}',
+                     transparent=True,
+                     overlay=True,
+                     control=True,
+                     show=False,
+                     opacity=0.8,
+                     ).add_to(self.map)
+            # self.map.add_child(strava_data[name])
+
+        
+        # We add a layer controller
+        folium.LayerControl(collapsed=False).add_to(self.map)
+        # Add separated layer control for activities
+        folium.plugins.GroupedLayerControl(groups={'My activities': self.groups_activity.values()},
+                                            exclusive_groups=False,
+                                            collapsed=False,).add_to(self.map)
+        # # Add separated layer control for avalacnche norway
+        # folium.plugins.GroupedLayerControl(groups={'Avalanche Norway': list(avalanche_NO_data.values())},
+        #                                     exclusive_groups=False,
+        #                                     collapsed=True,).add_to(self.map)
+        # # separated cl for stravas heatmaps
+        # folium.plugins.GroupedLayerControl(groups={'Strava Data': list(strava_data.values())},
+        #                                    exclusive_groups=False,
+        #                                    collapsed=True,).add_to(self.map)
     
     def add_other_elements(self, location):
         # Add the OverlappingMarkerSpiderfier plugin
@@ -86,130 +173,12 @@ class MapStrava():
         # Add legend
         self.map.get_root().add_child(get_legend())
         
-        # Add dark and light mode. 
-        folium.TileLayer('cartodbdark_matter',name="dark mode",control=True).add_to(self.map)
-        folium.TileLayer('cartodbpositron',name="light mode",control=True).add_to(self.map)
-        
         # add full screen button
         folium.plugins.Fullscreen().add_to(self.map)
         
         # add search bar
-        folium.plugins.Geocoder().add_to(self.map)
-
-        strava_data = {f"{name}":folium.FeatureGroup(name=f'strava_{name}').add_to(self.map) for name in ["all", "run", "ride", "winter"]}
-        # add XYZ tiles
-        for name in ["all", "run", "ride", "winter"]:
-            folium.TileLayer(f'https://proxy.nakarte.me/https/heatmap-external-a.strava.com/tiles-auth/{name}/hot/'+'{z}/{x}/{y}.png', 
-                     attr='to be written', 
-                     name=f'Strava heatmaps {name}',
-                     transparent=True,
-                     overlay=True,
-                     control=True,
-                     show=False,
-                     ).add_to(strava_data[name])
+        folium.plugins.Geocoder().add_to(self.map)        
         
-        # Add separated layer control for strava data
-            self.map.add_child(strava_data[name])
-
-        
-
-        # Add WMS raster
-        
-        # raster slopes
-        folium.WmsTileLayer(
-            url="https://nve.geodataonline.no:443/arcgis/services/Bratthet/MapServer/WmsServer?",
-            name="Bratthet", 
-            fmt="image/png",
-            layers="Bratthet_snoskred", #default
-            # attr=u"Weather data © 2012 IEM Nexrad",
-            transparent=True,
-            overlay=True,
-            control=True,
-        ).add_to(self.map)
-        
-        # raster previous avalacnhes
-        folium.WmsTileLayer(
-            url=r"https://nve.geodataonline.no:443/arcgis/services/SkredHendelser1/MapServer/WmsServer?",
-            name="Old avalanches", 
-            fmt="image/png",
-            layers="Snoskred", #default
-            # attr=u"Weather data © 2012 IEM Nexrad",
-            transparent=True,
-            overlay=True,
-            control=True,
-            min_zoom=11,
-        ).add_to(self.map)
-        
-        folium.WmsTileLayer(
-            url=r"https://nve.geodataonline.no:443/arcgis/services/SkredHendelser1/MapServer/WmsServer?",
-            name="Skredtype", 
-            fmt="image/png",
-            layers="Skredtype", #default
-            # attr=u"Weather data © 2012 IEM Nexrad",
-            transparent=True,
-            overlay=True,
-            control=True,
-            min_zoom=11,
-        ).add_to(self.map)
-        
-
-        
-        folium.WmsTileLayer(
-            url=r"https://data.geopf.fr/wms-r/wms?",
-            name="carte des pentes", 
-            fmt="image/png",
-            layers="GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN", #default
-            # attr=u"Weather data © 2012 IEM Nexrad",
-            transparent=True,
-            overlay=True,
-            control=True,
-        ).add_to(self.map)        
-        # GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN
-        
-        # https://data.geopf.fr/wmts
-        # ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW
-        # GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN
-        
-        # folium.TileLayer('https://strava-heatmap.tiles.freemap.sk/winter/hot/{z}/{x}/{y}.png', 
-        #          attr='Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>', 
-        #          name='Strava heatmaps v2').add_to(self.map)
-        
-        
-        # run :course a pied
-        # ride : vélo
-        # winter : sports d’hiver
-        # water : Sports nautiques
-        # all : Tout ce qui précéde, agrégé
-
-        
-        
-        #cluster markers
-        # icon_create_function = """\
-        # function(cluster) {
-        #     return L.divIcon({
-        #     html: '<b>' + cluster.getChildCount() + '</b>',
-        #     className: 'marker-cluster marker-cluster-large',
-        #     iconSize: new L.Point(20, 20)
-        #     });
-        # }"""
-        # marker_cluster = folium.plugins.MarkerCluster(locations=location,
-        #                                               name="1000 clustered icons",
-        #                                               overlay=True,
-        #                                               control=True,
-        #                                               icon_create_function=icon_create_function,)
-
-        # marker_cluster.add_to(self.map)
-        
-        # We add a layer controller
-        folium.LayerControl(collapsed=False).add_to(self.map)
-        # Add separated layer control for activities
-        folium.plugins.GroupedLayerControl(groups={'My activities': self.groups_activity.values()},
-                                            exclusive_groups=False,
-                                            collapsed=False,).add_to(self.map)
-        # separated cl for stravas heatmaps
-        folium.plugins.GroupedLayerControl(groups={'Strava Data': list(strava_data.values())},
-                                           exclusive_groups=False,
-                                           collapsed=False,).add_to(self.map)
     
     def plot_activities(self, dfmax):
         for idx, row in dfmax.iterrows():
@@ -218,28 +187,33 @@ class MapStrava():
     
     def plot_activity(self, act):
         activity_type = act['type']
-        self.groups_activity[activity_type].add_child(folium.PolyLine(st.listliststr_to_listlist(act['latlng']),
-                                                                    color=st.color_activities[act['type']],
-                                                                    Highlight= True,
-                                                                    show=True,
-                                                                    overlay=True,
-                                                                    tooltip=act['name'],
-                                                                    pathCoords=st.listliststr_to_listlist(act['latlng'])))
-        halfway_coord = st.listliststr_to_listlist(act['latlng'])[int(len(st.listliststr_to_listlist(act['latlng']))/2)]
-        
-        
-        # add marker to map
-        resolution, width, height = 75, 6, 6.5
+        # Activity info popup
+        resolution, width, height = 75, 6, 5
         iframe = folium.IFrame(self.get_popup_html(act),
                                width=(width*resolution)+20,
                                height=(height*resolution)+20)
-
         popup = folium.Popup(iframe, max_width=2650)
+        
+        poly = folium.PolyLine(st.listliststr_to_listlist(act['latlng']),
+                                                            color=st.color_activities[act['type']],
+                                                            Highlight= True,
+                                                            show=True,
+                                                            overlay=True,
+                                                            tooltip=act['name'],
+                                                            # popup=popup,
+                                                            pathCoords=st.listliststr_to_listlist(act['latlng']))
+        
+        # poly.add_child(popup)
+        self.groups_activity[activity_type].add_child(poly)
+        
+        # add marker to map
+        halfway_coord = st.listliststr_to_listlist(act['latlng'])[int(len(st.listliststr_to_listlist(act['latlng']))/2)]
         icon = folium.Icon(color='black',
                            icon_color=st.color_activities[act['type']],
                            icon='info-sign')
         marker = folium.Marker(location=halfway_coord,
                                popup=popup,
+                               lazy=True,
                                icon=icon,
                                tooltip=act['name'],
                                pathCoords=st.listliststr_to_listlist(act['latlng']))
@@ -267,7 +241,6 @@ class MapStrava():
                     Average Heart Rate&nbsp;&nbsp: {:.0f} bpm (maximum: {:.0f} bpm) <br>
                 </code>
             </p>
-        <img src="data:image/png;base64,{}"> <br>
         <img src="data:image/png;base64,{}"> 
         """.format(
             act['name'], 
@@ -283,7 +256,7 @@ class MapStrava():
             float(act['average_heartrate']),
             float(act['max_heartrate']),
             self.profiles["Elevation"][act['id']],
-            self.profiles["Speed"][act['id']], 
+            # self.profiles["Speed"][act['id']], 
         )
         return html
 
@@ -309,7 +282,7 @@ def get_script_ant(map_id):
                      //var coords = JSON.stringify(coords);
                      //alert(coords);
                      var ant_path = L.polyline.antPath(coords, {{
-                    "delay": 400,
+                    "delay": 800,
                     "dashArray": [
                         10,
                         20
@@ -321,15 +294,14 @@ def get_script_ant(map_id):
                     "reverse": false,
                     "hardwareAccelerated": true
                     }});
+                     
+                    {map_id}.eachLayer(function(layer){{
+                    if (layer instanceof L.Polyline.AntPath)
+                       {{ {map_id}.removeLayer(layer) }}
+                       }});
 
                     ant_path.addTo({map_id});
                      }}"""
-    # find a way to delete old ant paths ....
-    # {map_id}.eachLayer(function(layer){{
-    # if (layer instanceof L.Polyline.antpath)
-    #    {{ {map_id}.removeLayer(layer) }}
-    #    }});
-                     
     e = folium.Element(click_js)
     return e
 
