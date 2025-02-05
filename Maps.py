@@ -6,6 +6,7 @@ Created on Sun Jan  5 15:47:12 2025
 """
 
 import folium
+import numpy as np
 import Settings as st
 import ProcessData as pr
 from folium.plugins import HeatMap
@@ -20,7 +21,7 @@ def centroid(polylines):
     """ return the mean coordinates of all activities with spatial data """
     x, y = [], []
     for idx, polyline in polylines.items():
-        if polyline not in ["", 0, "0"]:
+        if polyline not in ["", 0, "0", np.nan]:
             for coord in st.listliststr_to_listlist(polyline):
                 x.append(coord[0])
                 y.append(coord[1])
@@ -39,7 +40,8 @@ class MapStrava():
                                                           y_axe={"name":profile_name, "col_name":col_name})
         self.groups_activity = {}
         for type_activity in dfmax.type.unique():
-            self.groups_activity[type_activity] = folium.FeatureGroup(name=type_activity).add_to(self.map)
+            if type_activity in st.typact_sport:
+                self.groups_activity[type_activity] = folium.FeatureGroup(name=type_activity).add_to(self.map)
         
         self.marker_cluster = folium.plugins.MarkerCluster(name="markers").add_to(self.map)
         self.plot_activities(dfmax)
@@ -93,6 +95,93 @@ class MapStrava():
         
         # add search bar
         folium.plugins.Geocoder().add_to(self.map)
+
+        strava_data = {f"{name}":folium.FeatureGroup(name=f'strava_{name}').add_to(self.map) for name in ["all", "run", "ride", "winter"]}
+        # add XYZ tiles
+        for name in ["all", "run", "ride", "winter"]:
+            folium.TileLayer(f'https://proxy.nakarte.me/https/heatmap-external-a.strava.com/tiles-auth/{name}/hot/'+'{z}/{x}/{y}.png', 
+                     attr='to be written', 
+                     name=f'Strava heatmaps {name}',
+                     transparent=True,
+                     overlay=True,
+                     control=True,
+                     show=False,
+                     ).add_to(strava_data[name])
+        
+        # Add separated layer control for strava data
+            self.map.add_child(strava_data[name])
+
+        
+
+        # Add WMS raster
+        
+        # raster slopes
+        folium.WmsTileLayer(
+            url="https://nve.geodataonline.no:443/arcgis/services/Bratthet/MapServer/WmsServer?",
+            name="Bratthet", 
+            fmt="image/png",
+            layers="Bratthet_snoskred", #default
+            # attr=u"Weather data © 2012 IEM Nexrad",
+            transparent=True,
+            overlay=True,
+            control=True,
+        ).add_to(self.map)
+        
+        # raster previous avalacnhes
+        folium.WmsTileLayer(
+            url=r"https://nve.geodataonline.no:443/arcgis/services/SkredHendelser1/MapServer/WmsServer?",
+            name="Old avalanches", 
+            fmt="image/png",
+            layers="Snoskred", #default
+            # attr=u"Weather data © 2012 IEM Nexrad",
+            transparent=True,
+            overlay=True,
+            control=True,
+            min_zoom=11,
+        ).add_to(self.map)
+        
+        folium.WmsTileLayer(
+            url=r"https://nve.geodataonline.no:443/arcgis/services/SkredHendelser1/MapServer/WmsServer?",
+            name="Skredtype", 
+            fmt="image/png",
+            layers="Skredtype", #default
+            # attr=u"Weather data © 2012 IEM Nexrad",
+            transparent=True,
+            overlay=True,
+            control=True,
+            min_zoom=11,
+        ).add_to(self.map)
+        
+
+        
+        folium.WmsTileLayer(
+            url=r"https://data.geopf.fr/wms-r/wms?",
+            name="carte des pentes", 
+            fmt="image/png",
+            layers="GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN", #default
+            # attr=u"Weather data © 2012 IEM Nexrad",
+            transparent=True,
+            overlay=True,
+            control=True,
+        ).add_to(self.map)        
+        # GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN
+        
+        # https://data.geopf.fr/wmts
+        # ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW
+        # GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN
+        
+        # folium.TileLayer('https://strava-heatmap.tiles.freemap.sk/winter/hot/{z}/{x}/{y}.png', 
+        #          attr='Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors, <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="https://www.mapbox.com/">Mapbox</a>', 
+        #          name='Strava heatmaps v2').add_to(self.map)
+        
+        
+        # run :course a pied
+        # ride : vélo
+        # winter : sports d’hiver
+        # water : Sports nautiques
+        # all : Tout ce qui précéde, agrégé
+
+        
         
         #cluster markers
         # icon_create_function = """\
@@ -113,10 +202,18 @@ class MapStrava():
         
         # We add a layer controller
         folium.LayerControl(collapsed=False).add_to(self.map)
+        # Add separated layer control for activities
+        folium.plugins.GroupedLayerControl(groups={'My activities': self.groups_activity.values()},
+                                            exclusive_groups=False,
+                                            collapsed=False,).add_to(self.map)
+        # separated cl for stravas heatmaps
+        folium.plugins.GroupedLayerControl(groups={'Strava Data': list(strava_data.values())},
+                                           exclusive_groups=False,
+                                           collapsed=False,).add_to(self.map)
     
     def plot_activities(self, dfmax):
         for idx, row in dfmax.iterrows():
-            if row['latlng'] not in ["", 0, "0"]: # Activities with no spatial data are ignored
+            if row['latlng'] not in ["", 0, "0", np.nan] and row["type"] in st.typact_sport: # Activities with no spatial data are ignored
                 self.plot_activity(row)
     
     def plot_activity(self, act):
@@ -274,7 +371,7 @@ def get_legend():
      
     <div id='maplegend' class='maplegend' 
         style='position: absolute; z-index:9999; border:2px solid grey; background-color:rgba(255, 255, 255, 0.8);
-         border-radius:6px; padding: 10px; font-size:14px; right: 20px; bottom: 20px;'>
+         border-radius:6px; padding: 10px; font-size:14px; left: 20px; bottom: 20px;'>
          
     <div class='legend-title'>Legend</div>
     <div class='legend-scale'>

@@ -155,7 +155,7 @@ def get_profiles(dfmax, x_axe, y_axe):
     for idx, row in dfmax.iterrows():
         # figure
         fig, ax = plt.subplots(figsize=(6, 2))
-        if row[x_axe["col_name"]] not in ["", 0, "0"] and row[y_axe["col_name"]] not in ["", 0, "0"]:
+        if row[x_axe["col_name"]] not in ["", 0, "0", np.nan] and row[y_axe["col_name"]] not in ["", 0, "0", np.nan]:
             mini_df = pd.DataFrame({x_axe["name"]:st.liststr_to_list(row[x_axe["col_name"]]),
                                     y_axe["name"]:st.liststr_to_list(row[y_axe["col_name"]])})
             
