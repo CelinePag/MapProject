@@ -16,6 +16,16 @@ import os
 import Settings as st
 
 
+def centroid(polylines):
+    """ return the mean coordinates of all activities with spatial data """
+    x, y = [], []
+    for idx, polyline in polylines.items():
+        if polyline not in ["", 0, "0", np.nan]:
+            for coord in st.listliststr_to_listlist(polyline):
+                x.append(coord[0])
+                y.append(coord[1])
+    return [(min(x)+max(x))/2, (min(y)+max(y))/2]
+
 def moving_average(a, n=3):
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]

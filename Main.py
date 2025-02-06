@@ -16,7 +16,7 @@ pd.options.display.max_columns = None
 # TODO
 
 if __name__ == "__main__":
-    who = "gabriel"
+    who = "celine"
     Cli = ch.ClientStrava(who)
     Act = ch.Activities(Cli.client, Cli.nom) # 1 request
     
@@ -45,26 +45,26 @@ if __name__ == "__main__":
     dfmax = pd.merge(Act.df, dfs, on='id', how="outer")#left_on='Unnamed: 0', right_on='team_name')
         
     # ----------- Html map
-    # mp.get_map(dfmax, Cli.nom)
+    mp.get_map(dfmax, Cli.nom)
     
     # ----------- various graphs
     # gr.distance_week(dfmax.loc[dfmax['type'] == 'Run'], ["Ride, Run"])
     # gr.graph_many(dfmax, ["Run", "TrailRun"], ['type','moving_time_hr','distance_km','total_elevation_gain','average_speed'])
     # gr.stream_xy(dfmax, "distance_y", "heartrate")
     
-    graphs = gr.GraphActs(dfmax[dfmax["sport_type"].isin(st.typact_sport)])
-    graphs.temporal("total_elevation_gain", "Total elevation gain [m]", hue="sport_type")
-    graphs.temporal("distance_km", "Distance [km]", hue="sport_type")
-    graphs.temporal("elev_high", "Max altitude reached [m]", hue="sport_type")
-    graphs.temporal("moving_time_hr", "Moving time [hour]", hue="sport_type")
+    # graphs = gr.GraphActs(dfmax[dfmax["sport_type"].isin(st.typact_sport)])
+    # graphs.temporal("total_elevation_gain", "Total elevation gain [m]", hue="sport_type")
+    # graphs.temporal("distance_km", "Distance [km]", hue="sport_type")
+    # graphs.temporal("elev_high", "Max altitude reached [m]", hue="sport_type")
+    # graphs.temporal("moving_time_hr", "Moving time [hour]", hue="sport_type")
     
-    graphs.temporal("hour_of_day", "Start of Activity", hue="sport_type", daylight=True)
+    # graphs.temporal("hour_of_day", "Start of Activity", hue="sport_type", daylight=True)
     
-    graphs.weekdays_violin(['distance_km', "average_speed_kmh", 'total_elevation_gain'])
-    graphs.weekdays_pie(['distance_km', 'total_elevation_gain', "moving_time_hr"])
+    # graphs.weekdays_violin(['distance_km', "average_speed_kmh", 'total_elevation_gain'])
+    # graphs.weekdays_pie(['distance_km', 'total_elevation_gain', "moving_time_hr"])
 
 
-    graphs_foot = gr.GraphActs(dfmax[dfmax["sport_type"].isin(st.typact_run)])
-    graphs_foot.best_distance(distance=5000)
+    # graphs_foot = gr.GraphActs(dfmax[dfmax["sport_type"].isin(st.typact_run)])
+    # graphs_foot.best_distance(distance=5000)
 
     
