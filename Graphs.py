@@ -92,8 +92,8 @@ class GraphActs():
             df_mini[y] = pd.to_datetime(df_mini[y])
         
         fig, ax = plt.subplots(figsize=figsize)
-        sns.scatterplot(x=self.timedata, y=y, data=df_mini, hue=hue, ax=ax)
-        
+        sns.scatterplot(x=self.timedata, y=y, data=df_mini, hue=hue, ax=ax,
+                        palette=st.color_activities, edgecolor="black", linewidth=0.9, zorder=2.5)        
         if daylight:
             df_mini = prd.add_daylight(df_mini, self.timedata, y)
             lines = {}
@@ -122,11 +122,17 @@ class GraphActs():
             ax.set_ylim(df_mini[y][0].replace(hour=0, minute=0), df_mini[y][0].replace(hour=23, minute=59))
 
         plt.grid()
-        pos = [f"{y}-{m:02d}-01" for m in range(1,13) for y in range(2022,2026)] # TODO change hardcoded
-        lab = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'June',  
-               'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
-        lab = [k+f"-{y}" for k in lab for y in range(22,26)] # TODO change hardcoded
-        plt.xticks(pos, lab)
+        pos_major = [f"{y}-{m:02d}-01" for m in [1,7] for y in range(2010,2030)]
+        pos_minor = [f"{y}-{m:02d}-01" for m in range(1,13) for y in range(2010,2030)]
+        lab_major = [ 'Jan', 'July']
+        lab_minor = [ 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'June',  
+                     'July', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec']
+        lab_major = [k+f"-{y}" for k in lab_major for y in range(10,30)]
+        lab_minor = ["" for k in lab_minor for y in range(10,30)]
+
+        
+        plt.xticks(pos_minor, lab_minor, minor=True)
+        plt.xticks(pos_major, lab_major, minor=False, rotation=45)
         
         plt.ylabel(ylabel)
         plt.xlabel(None)
@@ -137,12 +143,9 @@ class GraphActs():
         
         ax.set_xlim(sorted(df_mini[self.timedata].values)[1], pd.to_datetime('today').normalize())
         ax.tick_params(axis="x", rotation=90)
-        ax.grid(which='major', color='#DDDDDD', linewidth=0.8)
-        ax.grid(which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5)
-        plt.xticks(rotation=45)
+        ax.grid(visible=True, which='major', color='#DDDDDD', linewidth=0.8, zorder=-1)
+        ax.grid(visible=True, which='minor', color='#EEEEEE', linestyle=':', linewidth=0.5, zorder=-1)
         plt.show()
-
-
 
 
     # gr.distance_week(dfmax.loc[dfmax['type'] == 'Run'], ["Ride, Run"])

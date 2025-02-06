@@ -96,11 +96,11 @@ def get_best_distance(dfmax, distanceK):
             tim = [float(k) for k in row["time"][1:-1].split(",")]
             try:
                 heart = [float(k) for k in row["heartrate"][1:-1].split(",")]
-            except ValueError:
+            except (ValueError, TypeError):
                 heart = len(dist)*[0]
             try:
                 alt = [float(k) for k in row["altitude"][1:-1].split(",")]
-            except ValueError:
+            except (ValueError, TypeError):
                 alt = len(dist)*[0]
             
             
@@ -150,42 +150,44 @@ def get_best_distance(dfmax, distanceK):
 
 
 
-def get_profiles(dfmax, x_axe, y_axe):
+def get_all_profiles(dfmax, x_axe, y_axe):
     profile = dict()
     for idx, row in dfmax.iterrows():
         # figure
-        fig, ax = plt.subplots(figsize=(6, 2))
-        if row[x_axe["col_name"]] not in ["", 0, "0", np.nan] and row[y_axe["col_name"]] not in ["", 0, "0", np.nan]:
-            mini_df = pd.DataFrame({x_axe["name"]:st.liststr_to_list(row[x_axe["col_name"]]),
-                                    y_axe["name"]:st.liststr_to_list(row[y_axe["col_name"]])})
-            
-            if x_axe["name"] not in ["distance_y", "Elevation"]:
-                mini_df[x_axe["name"]] = mini_df[x_axe["name"]].rolling(20).mean()
-            if y_axe["name"] not in ["distance_y", "Elevation"]:
-                mini_df[y_axe["name"]] = mini_df[y_axe["name"]].rolling(20).mean()
-            if y_axe["name"] == "Vitesse":
-                mini_df[y_axe["name"]] = mini_df[y_axe["name"]] * 3.6
-            if x_axe["name"] == "Distance":
-                mini_df[x_axe["name"]] = mini_df[x_axe["name"]]/1000
-            ax = mini_df.plot(x=x_axe["name"], y=y_axe["name"], ax=ax, 
-                                color=st.color_activities[row['type']],
-                                legend=False, )
-            
-            ax.set_ylabel(y_axe["name"])
-            ax.set_xlabel(x_axe["name"])
-            # ax.axes.xaxis.set_visible(False)
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            png = 'elevation_profile_{}.png'.format(row['id'])
-            fig.savefig(png, dpi=75)
-            plt.close()
-         
-            # read png file
-            profile[row['id']] = base64.b64encode(open(png, 'rb').read()).decode()
-         
-            # delete file
-            os.remove(png)
+        profile[row['id']] = get_profile_id(row, x_axe, y_axe)
     return profile
+
+def get_profile_id(row, x_axe, y_axe):
+    fig, ax = plt.subplots(figsize=(6, 2))
+    if row[x_axe["col_name"]] not in ["", 0, "0", np.nan] and row[y_axe["col_name"]] not in ["", 0, "0", np.nan]:
+        mini_df = pd.DataFrame({x_axe["name"]:st.liststr_to_list(row[x_axe["col_name"]]),
+                                y_axe["name"]:st.liststr_to_list(row[y_axe["col_name"]])})
+        
+        if x_axe["name"] not in ["distance_y", "Elevation"]:
+            mini_df[x_axe["name"]] = mini_df[x_axe["name"]].rolling(20).mean()
+        if y_axe["name"] not in ["distance_y", "Elevation"]:
+            mini_df[y_axe["name"]] = mini_df[y_axe["name"]].rolling(20).mean()
+        if y_axe["name"] == "Vitesse":
+            mini_df[y_axe["name"]] = mini_df[y_axe["name"]] * 3.6
+        if x_axe["name"] == "Distance":
+            mini_df[x_axe["name"]] = mini_df[x_axe["name"]]/1000
+        ax = mini_df.plot(x=x_axe["name"], y=y_axe["name"], ax=ax, 
+                            color=st.color_activities[row['type']],
+                            legend=False, )
+        
+        ax.set_ylabel(y_axe["name"])
+        ax.set_xlabel(x_axe["name"])
+        # ax.axes.xaxis.set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        png = 'elevation_profile_{}.png'.format(row['id'])
+        fig.savefig(png, dpi=75)
+        plt.close()
+        # read png file
+        profile_id = base64.b64encode(open(png, 'rb').read()).decode()
+        # delete file
+        os.remove(png)
+    return profile_id
 
 def get_VAP(speed, grade):
     func = lambda x: 0.0015*x*x + 0.0279*x + 1

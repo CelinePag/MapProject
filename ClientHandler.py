@@ -10,34 +10,33 @@ import json
 import time
 from stravalib.client import Client
 import pandas as pd
+import os.path
 
 PATH_TOKEN = r"Data\tokens"
 PATH_CSV = r"Data"
 
 class ClientStrava:
     def __init__(self, name): #id_athlete, id_secret, name_file):
-        with open(f"{PATH_TOKEN}\{name}.json") as json_file:
+        with open(f"{PATH_TOKEN}\client.json") as json_file:
             user_data = json.load(json_file)
-        self.id_athlete = user_data["id"]
+        self.id_client = user_data["client_id"]
         self.id_secret = user_data["secret_key"]
-        self.name_file = f"{user_data['tokenFile']}"
-        self.nom = user_data["name"]
-        if self.name_file in [None, 0, "0"]:
+
+        self.name_file = f"{PATH_TOKEN}\strava_tokens_{name}.json"
+        self.nom = name
+        if not os.path.isfile(self.name_file):
             self.create_client(name)
-            user_data['tokenFile'] = f"strava_tokens_{name}.json"
-            with open(f"{PATH_TOKEN}\{name}.json", "w") as outfile:
-                 json.dump(user_data, outfile)
-        self.name_file = f"{PATH_TOKEN}\{user_data['tokenFile']}"
+        self.name_file = f"{PATH_TOKEN}\strava_tokens_{name}.json"
         self.init_client()
 
     
     def create_client(self, name):
-        print(f"http://www.strava.com/oauth/authorize?client_id={self.id_athlete}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=activity:read_all,profile:read_all")
+        print(f"http://www.strava.com/oauth/authorize?client_id={self.id_client}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=activity:read_all,profile:read_all")
         code = input("code:")
         response = requests.post(
                         url = 'https://www.strava.com/oauth/token',
                         data = {
-                                'client_id': self.id_athlete,
+                                'client_id': self.id_client,
                                 'client_secret': self.id_secret,
                                 'code': code, #"0cb76cf181e2d3e55dbac35cc439a99e7727de1e",
                                 'grant_type': 'authorization_code'
@@ -56,7 +55,7 @@ class ClientStrava:
             response = requests.post(
                                 url = 'https://www.strava.com/oauth/token',
                                 data = {
-                                        'client_id': self.id_athlete,
+                                        'client_id': self.id_client,
                                         'client_secret': self.id_secret,
                                         'grant_type': 'refresh_token',
                                         'refresh_token': strava_tokens['refresh_token']

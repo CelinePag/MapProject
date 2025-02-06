@@ -11,6 +11,9 @@ import Settings as st
 import ProcessData as pr
 from folium.plugins import OverlappingMarkerSpiderfier
 from folium.map import Marker, Template, Layer
+from folium.utilities import JsCode
+from folium.elements import EventHandler
+from folium.vector_layers import PolyLine
 
 
 #TODO: import gpx/polyline/similar by user to the map
@@ -34,14 +37,14 @@ class MapStrava():
         location = centroid(dfmax['latlng'])
         self.map = folium.Map(location=location, zoom_start=4)
         self.profiles = {}
-        for profile_name, col_name in zip(["Elevation", "Speed"],
-                                          ["altitude", "velocity_smooth"]):
-            self.profiles[profile_name] = pr.get_profiles(dfmax,
-                                                          x_axe={"name":"Distance", "col_name":"distance_y"},
-                                                          y_axe={"name":profile_name, "col_name":col_name})
+        # for profile_name, col_name in zip(["Elevation", "Speed"],
+        #                                   ["altitude", "velocity_smooth"]):
+        #     self.profiles[profile_name] = pr.get_profiles(dfmax,
+        #                                                   x_axe={"name":"Distance", "col_name":"distance_y"},
+        #                                                   y_axe={"name":profile_name, "col_name":col_name})
         self.groups_activity = {}
         for type_activity in dfmax.type.unique():
-            if type_activity in st.typact_sport:
+            if type_activity in st.typact_map:
                 self.groups_activity[type_activity] = folium.FeatureGroup(name=type_activity).add_to(self.map)
         
         self.marker_cluster = folium.plugins.MarkerCluster(name="Markers").add_to(self.map)
@@ -55,29 +58,39 @@ class MapStrava():
     
     def add_scripts(self):
         # Modify Marker template to include the onClick event
-        click_template_marker = """{% macro script(this, kwargs) %}
-            var {{ this.get_name() }} = L.marker(
-                {{ this.location|tojson }},
-                {{ this.options|tojson }}
-            ).addTo({{ this._parent.get_name() }}).on('click', onClick);
-        {% endmacro %}"""
+        template_marker = """{% macro script(this, kwargs) %}
+                        var {{ this.get_name() }} = L.marker(
+                            {{ this.location|tojson }},
+                            {{ this.options|tojson }}
+                        ).addTo({{ this._parent.get_name() }});
+                        {{ this.get_name() }}.on('click', onClick);
+                        {{ this.get_name() }}.on('mouseover', hover_in);
+                        {{ this.get_name() }}.on('mouseout', hover_out);
+                    {% endmacro %}"""
         
-        click_template_polyline = """{% macro script(this, kwargs) %}
-            var {{ this.get_name() }} = L.polyline(
-                {{ this.location|tojson }},
-                {{ this.options|tojson }}
-            ).addTo({{ this._parent.get_name() }}).on('click', onClick);
-        {% endmacro %}"""
-        
+        template_polyline = """
+                            {% macro script(this, kwargs) %}
+                                var {{ this.get_name() }} = L.polyline(
+                                    {{ this.locations|tojson }},
+                                    {{ this.options|tojson }}
+                                ).addTo({{ this._parent.get_name() }});
+                                {{ this.get_name() }}.on('click', onClick);
+                                {{ this.get_name() }}.on('mouseover', hover_in);
+                                {{ this.get_name() }}.on('mouseout', hover_out);
+                            {% endmacro %}
+                            """
+                            
 
         # Change template to custom template
-        Marker._template = Template(click_template_marker)
-        
-        Layer._template = Template(click_template_polyline)
+        Marker._template = Template(template_marker)
+        # PolyLine._template = Template(template_polyline)
 
         html = self.map.get_root()
         html.script.add_child(get_script_ant(self.map.get_name()))
+        html.script.add_child(script_hover_ant(self.map.get_name()))
+        html.script.add_child(delete_ants(self.map.get_name()))
         
+
         # Add leaflet antpath plugin cdn link
         link = folium.JavascriptLink("https://cdn.jsdelivr.net/npm/leaflet-ant-path@1.3.0/dist/leaflet-ant-path.js")
         self.map.get_root().html.add_child(link)
@@ -104,11 +117,8 @@ class MapStrava():
                 name=f'{n}', 
                 fmt="image/png",
                 layers=f'{l}', 
-                transparent=True,
                 opacity=0.6,
-                overlay=True,
-                control=True,
-                show=False,
+                transparent=True,overlay=True,control=True,show=False,
                 min_zoom=z,
             ).add_to(self.map)
             # self.map.add_child(avalanche_NO_data[l])
@@ -122,12 +132,22 @@ class MapStrava():
             layers='GEOGRAPHICALGRIDSYSTEMS.SLOPES.MOUNTAIN', 
             attr="IGN",
             opacity=0.6,
-            transparent=True,
-            overlay=True,
-            control=True,
-            show=False,
+            transparent=True,overlay=True,control=True,show=False,
             min_zoom=8,
         ).add_to(self.map)
+        
+        folium.WmsTileLayer(
+            url="https://data.geopf.fr/wms-r/wms?",
+            version="1.3.0" ,
+            name='elevation lines FRA', 
+            fmt="image/png",
+            layers='ELEVATION.CONTOUR.LINE', 
+            attr="IGN",
+            opacity=0.8,
+            transparent=True,overlay=True,control=True,show=False,
+            min_zoom=8,
+        ).add_to(self.map)
+        
         
         # Add layers strava heatmap
         color_heatmap = {"all":"hot", "run":"hot", "ride":"hot", "winter":"purple"}
@@ -144,6 +164,33 @@ class MapStrava():
                      ).add_to(self.map)
             # self.map.add_child(strava_data[name])
 
+        shadow_FRA = folium.WmsTileLayer(
+            url="https://data.geopf.fr/wms-r/wms?",
+            version="1.3.0" ,
+            name='shadow FRA', 
+            fmt="image/png",
+            layers='ELEVATION.ELEVATIONGRIDCOVERAGE.SHADOW', 
+            attr="IGN",
+            opacity=0.8,
+            transparent=True,overlay=True,control=False,show=True,
+            min_zoom=5,
+        )
+        
+        shadow_NOR = folium.WmsTileLayer(
+            url="https://wms.geonorge.no/skwms1/wms.fjellskygge?language=Norwegian&",
+            version="1.3.0" ,
+            name='shadow NOR', 
+            fmt="image/png",
+            layers='fjellskygge', 
+            attr="GeoNorge",
+            opacity=0.8,
+            transparent=True,overlay=True,control=False,show=True,
+            min_zoom=5,)
+        
+        shadow_FRA.add_to(self.map)
+        shadow_NOR.add_to(self.map)
+
+        self.map.keep_in_front(shadow_NOR, shadow_FRA)
         
         # We add a layer controller
         folium.LayerControl(collapsed=False).add_to(self.map)
@@ -182,7 +229,7 @@ class MapStrava():
     
     def plot_activities(self, dfmax):
         for idx, row in dfmax.iterrows():
-            if row['latlng'] not in ["", 0, "0", np.nan] and row["type"] in st.typact_sport: # Activities with no spatial data are ignored
+            if row['latlng'] not in ["", 0, "0", np.nan] and row["type"] in st.typact_map: # Activities with no spatial data are ignored
                 self.plot_activity(row)
     
     def plot_activity(self, act):
@@ -221,8 +268,10 @@ class MapStrava():
         # self.groups_activity[activity_type].add_child(marker)
         marker.add_to(self.marker_cluster)
 
+
         
     def get_popup_html(self, act):
+        
         html = """
         <h3>{}</h3>
             <p>
@@ -246,7 +295,7 @@ class MapStrava():
             act['name'], 
             act["start_date_local"].split(" ")[0], 
             act["hour_of_day"],  
-            act['type'], 
+            act['sport_type'], 
             act['distance_km'], 
             act['total_elevation_gain'], 
             int(act['moving_time_hr']),
@@ -255,10 +304,14 @@ class MapStrava():
             act['max_speed_kmh'], 
             float(act['average_heartrate']),
             float(act['max_heartrate']),
-            self.profiles["Elevation"][act['id']],
+            # self.profiles["Elevation"][act['id']],
+            pr.get_profile_id(act,
+                              x_axe={"name":"Distance", "col_name":"distance_y"},
+                              y_axe={"name":"Elevation", "col_name":"altitude"})
             # self.profiles["Speed"][act['id']], 
         )
         return html
+    
 
 def get_map(dfmax, name):
     """ Write a html file containing a map of all activities.
@@ -301,6 +354,42 @@ def get_script_ant(map_id):
                        }});
 
                     ant_path.addTo({map_id});
+                     }}"""
+    e = folium.Element(click_js)
+    return e
+
+def script_hover_ant(map_id):
+    # Create the onClick listener function
+    click_js = f"""function hover_in(e) {{                
+                        
+                     var coords = e.target.options.pathCoords;
+                     var ant_path = L.polyline.antPath(coords, {{
+                    "delay": 800,
+                    "dashArray": [
+                        10,
+                        20
+                    ],
+                    "weight": 5,
+                    "color": "#0000FF",
+                    "pulseColor": "#FFFFFF",
+                    "paused": false,
+                    "reverse": false,
+                    "hardwareAccelerated": true
+                    }});
+                    ant_path.addTo({map_id});
+                     }}"""
+    e = folium.Element(click_js)
+    return e
+
+
+
+def delete_ants(map_id):
+    # delete all ant paths
+    click_js = f"""function hover_out(e) {{                
+                    {map_id}.eachLayer(function(layer){{
+                    if (layer instanceof L.Polyline.AntPath)
+                       {{ {map_id}.removeLayer(layer) }}
+                       }});
                      }}"""
     e = folium.Element(click_js)
     return e
