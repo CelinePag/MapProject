@@ -15,6 +15,7 @@ color_activities = {'Ride':'#18a81a',
                     "Hike":"#e88e17",
                      'BackcountrySki':"#070b52",
                      'NordicSki':"#087c9c",
+                     'Snowshoe':"#087c9c",
                      'AlpineSki':"#1702ba",
                      'IceSkate':"#7209b8",
                      'Workout':"grey",
@@ -28,10 +29,10 @@ color_weekday = {'Monday':"#a83a32", 'Tuesday':"#078743", 'Wednesday':"#737373",
 
 typact_run = ['Run', 'TrailRun']
 typact_foot = typact_run + ['Walk', "Hike"]
-typact_winter = ['BackcountrySki', 'NordicSki', 'AlpineSki', 'IceSkate']
-typact_sport = typact_foot + ['BackcountrySki', 'NordicSki', 'Ride']
+typact_winter = ['BackcountrySki', 'NordicSki', 'AlpineSki', 'IceSkate', 'Snowshoe']
+typact_sport = typact_foot + ['BackcountrySki', 'NordicSki', 'Ride', 'Snowshoe']
 
-typact_map = typact_sport + ['AlpineSki']
+typact_map = typact_sport + ['AlpineSki', 'EBikeRide', "Swim"]
 
 def listliststr_to_listlist(st):
     return [[float(i.split(", ")[j]) for j in range(len(i.split(", ")))] for i in st[2:-2].split("], [")]

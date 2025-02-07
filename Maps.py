@@ -98,6 +98,15 @@ class MapStrava():
                 control=True, show=False,
                 **layer
                 ).add_to(self.map)
+        
+        folium.WmsTileLayer(
+            url="https://data.geopf.fr/wms-v/ows?SERVICE=WMS&",
+            version="1.3.0", name='itinerary FRA', fmt="image/png",
+            layers='TRACES.RANDO.HIVERNALE', 
+            attr="IGN", opacity=0.9, min_zoom=5,
+            transparent=True,overlay=True,control=True,show=False,
+            ).add_to(self.map)
+        
   
         # Add layers strava heatmap
         color_heatmap = {"all":"hot", "run":"hot", "ride":"hot", "winter":"purple"}
@@ -124,9 +133,19 @@ class MapStrava():
             url="https://wms.geonorge.no/skwms1/wms.fjellskygge?language=Norwegian&",
             version="1.3.0", name='shadow NOR', fmt="image/png",
             layers='fjellskygge', 
-            attr="GeoNorge", opacity=0.9, min_zoom=5,
+            attr="GeoNorge", opacity=0.8, min_zoom=5,
             transparent=True,overlay=True,control=False,show=True,
             )
+        
+        folium.WmsTileLayer(
+            url="https://basemap.nationalmap.gov:443/arcgis/services/USGSShadedReliefOnly/MapServer/WMSServer?",
+            version="1.3.0", name='shadow USA', fmt="image/png",
+            layers='0', 
+            attr="GeoNorge", opacity=0.35, min_zoom=5,
+            transparent=True,overlay=True,control=True,show=False,
+            ).add_to(self.map)
+        
+        
         
         shadow_FRA.add_to(self.map)
         shadow_NOR.add_to(self.map)

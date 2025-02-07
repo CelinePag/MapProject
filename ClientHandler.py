@@ -5,17 +5,22 @@ Created on Sun Jan  5 15:43:38 2025
 @author: celine
 """
 
-import requests
+import os.path
 import json
 import time
+import requests
+
 from stravalib.client import Client
+from stravalib.exc import ObjectNotFound
 import pandas as pd
-import os.path
 
 PATH_TOKEN = r"Data\tokens"
 PATH_CSV = r"Data"
 
 class ClientStrava:
+    """ 
+    TBD
+    """
     def __init__(self, name): #id_athlete, id_secret, name_file):
         with open(f"{PATH_TOKEN}\client.json") as json_file:
             user_data = json.load(json_file)
@@ -29,7 +34,7 @@ class ClientStrava:
         self.name_file = f"{PATH_TOKEN}\strava_tokens_{name}.json"
         self.init_client()
 
-    
+
     def create_client(self, name):
         print(f"http://www.strava.com/oauth/authorize?client_id={self.id_client}&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=activity:read_all,profile:read_all")
         code = input("code:")
@@ -65,7 +70,7 @@ class ClientStrava:
             with open(self.name_file, 'w') as outfile:
                 json.dump(new_strava_tokens, outfile)#Use new Strava tokens from now
             strava_tokens = new_strava_tokens#Loop through all activities
-            
+
         self.client = Client()
         self.client.access_token = strava_tokens['access_token']
         self.client.refresh_token = strava_tokens['refresh_token']
@@ -78,15 +83,15 @@ class Activities:
         self.client = client
         self.init_csv(nom)
         self.df = pd.read_csv(f'{PATH_CSV}\strava_activities_{nom}.csv')
-        
-    def init_csv(self, nom):      
+
+    def init_csv(self, nom):
         athlete = self.client.get_athlete()
         print("Athlete's name is {} {}, based in {}, {}"
               .format(athlete.firstname,
                       athlete.lastname,
                       athlete.city,
                       athlete.country))
-        
+
         my_cols = [
                 "name",
                 "start_date_local",
@@ -106,26 +111,26 @@ class Activities:
                 # "visibility",
                 "has_heartrate",
                 "suffer_score"]
-        
+
         activities = self.client.get_activities(limit=1000)
         data = []
         for activity in activities:
             data.append([activity.id]+[getattr(activity, x) for x in my_cols])
             try:
-                data[-1][1] = pd.to_datetime(data[-1][1]) 
+                data[-1][1] = pd.to_datetime(data[-1][1])
             except:
                 pass
         # Add id to the beginning of the columns, used when selecting a specific activity
         my_cols.insert(0,'id')
         df = pd.DataFrame(data, columns=my_cols)
         # Make all walks into hikes for consistency
-        
+
         try:
             df['type'] = df['type'].apply(lambda x: x.root)
             df['sport_type'] = df['sport_type'].apply(lambda x: x.root)
         except AttributeError:
             pass
-        
+
         try:
             df['distance'] = df['distance'].apply(lambda x: x.magnitude)
             df['total_elevation_gain'] = df['total_elevation_gain'].apply(lambda x: x.magnitude)
@@ -134,7 +139,7 @@ class Activities:
         except AttributeError:
             pass
 
-        
+
         df['type'] = df['type'].replace('Walk','Hike')
         df['distance_km'] = df['distance']/1e3
         df['average_pace'] = (1/0.06)/df['average_speed']
@@ -150,8 +155,8 @@ class Activities:
         df['elapsed_time_hr'] = df['elapsed_time'].astype('int64')/3600e9
         df['moving_time_hr'] = df['moving_time'].astype('int64')/3600e9
         df.to_csv(f'{PATH_CSV}\strava_activities_{nom}.csv')
-        
-        # TODO make sure that all times are in datetime format by the end 
+
+        # TODO make sure that all times are in datetime format by the end
 
 
     def init_csv_streams(self, df, nb=50, name=""):
@@ -161,7 +166,7 @@ class Activities:
         except:
             print("old file not found")
             old = None
-        
+
         types = ['time', 'distance', "heartrate", 'latlng', 'altitude',
                  'velocity_smooth', 'moving', 'grade_smooth', "cadence"]
         data = []
@@ -180,9 +185,8 @@ class Activities:
                             subdata.append(None)
                     data.append(subdata)
                     nb_request += 1
-                except:
-                    print(f"{nb_request} done, too many requests error")
-                    break
+                except ObjectNotFound:
+                    print(f"No stream data for activity {row['name']}")
         print("nb request:", nb_request)
         types.insert(0,'id')
         df2 = pd.DataFrame(data, columns=types)

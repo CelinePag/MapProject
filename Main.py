@@ -15,6 +15,8 @@ pd.options.display.max_columns = None
 
 # TODO
 
+# http://localhost/exchange_token?state=&code=b227e15a7407bd7df3af7c42b313198b205b03fc&scope=read,activity:read_all,profile:read_all
+
 if __name__ == "__main__":
     who = "celine"
     Cli = ch.ClientStrava(who)
