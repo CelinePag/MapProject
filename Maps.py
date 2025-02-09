@@ -48,6 +48,8 @@ class MapStrava():
 
         html = self.map.get_root()
         map_id = self.map.get_name()
+        # html.script.add_child(folium.Element(scm.add_file2(map_id)))
+        # html.script.add_child(folium.Element(scm.add_file()))
         html.script.add_child(folium.Element(scm.click_on(map_id)))
         html.script.add_child(folium.Element(scm.hover_in(map_id)))
         html.script.add_child(folium.Element(scm.hover_out(map_id)))
@@ -120,6 +122,38 @@ class MapStrava():
                 ).add_to(self.map)
 
 
+
+        urlx = "https://wms.geonorge.no/skwms1/wms.friluftsruter2?"
+
+        folium.WmsTileLayer(
+            url=urlx,
+            version="1.3.0", name='itinerary1 NOR', fmt="image/png",
+            layers='Ruter', 
+            attr="IGN", opacity=0.9, min_zoom=5,
+            transparent=True,overlay=True,control=True,show=False,
+            ).add_to(self.map)
+        folium.WmsTileLayer(
+            url=urlx,
+            version="1.3.0", name='itinerary2 NOR', fmt="image/png",
+            layers='Fotrutetype', 
+            attr="IGN", opacity=0.9, min_zoom=5,
+            transparent=True,overlay=True,control=True,show=False,
+            ).add_to(self.map)
+        folium.WmsTileLayer(
+            url=urlx,
+            version="1.3.0", name='itinerary3 NOR', fmt="image/png",
+            layers='Skiløypepreparering', 
+            attr="IGN", opacity=0.9, min_zoom=5,
+            transparent=True,overlay=True,control=True,show=False,
+            ).add_to(self.map)
+        folium.WmsTileLayer(
+            url=urlx,
+            version="1.3.0", name='itinerary4 NOR', fmt="image/png",
+            layers='Gradering', 
+            attr="IGN", opacity=0.9, min_zoom=5,
+            transparent=True,overlay=True,control=True,show=False,
+            ).add_to(self.map)
+
         # Add shadows for moutains
         shadow_FRA = folium.WmsTileLayer(
             url=url_FRA,
@@ -145,6 +179,12 @@ class MapStrava():
             transparent=True,overlay=True,control=True,show=False,
             ).add_to(self.map)
         
+
+        
+        
+        # "https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/WMTS/tile/1.0.0/"
+        # "https://services.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/WMTS?"
+        # Elevation_World_Hillshade
         
         
         shadow_FRA.add_to(self.map)

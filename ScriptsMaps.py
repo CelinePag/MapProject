@@ -105,6 +105,31 @@ def click_on(map_id):
              }}"""
     return js
 
+def add_file():
+    js = """function loadFile() {{
+            input = document.getElementById('fileinput');
+            if (!input.files[0]) {
+                bodyAppend("p", "Please select a file before clicking 'Load'");
+            }
+            else {{
+                file = input.files[0];
+                fr = new FileReader();
+                fr.onload = receiveBinary();
+                fr.readAsArrayBuffer(file);
+            }}
+        }}"""
+    return js
+
+def add_file2(map_id):
+    js = """
+            function receiveBinary(fr) {{
+                result = fr.result;
+                var shpfile = L.Shapefile(result);
+                shpfile.addTo({map_id});
+            }}
+    """
+    return js
+
 
 def hover_in(map_id):
     js = f"""function hover_in(e) {{                
